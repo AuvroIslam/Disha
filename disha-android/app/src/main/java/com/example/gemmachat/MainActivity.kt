@@ -1,0 +1,115 @@
+package com.example.gemmachat
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.example.gemmachat.data.download.HfDownloadRepository
+import com.example.gemmachat.ui.chat.ChatScreen
+import com.example.gemmachat.ui.chat.ChatViewModel
+import com.example.gemmachat.ui.firstaid.FirstAidScreen
+import com.example.gemmachat.ui.firstaid.FirstAidViewModel
+import com.example.gemmachat.ui.gis.GisScreen
+import com.example.gemmachat.ui.gis.GisViewModel
+import com.example.gemmachat.ui.home.DishaHomeScreen
+import com.example.gemmachat.ui.onboarding.OnboardingScreen
+import com.example.gemmachat.ui.onboarding.OnboardingViewModel
+import com.example.gemmachat.ui.settings.SettingsScreen
+import com.example.gemmachat.ui.settings.SettingsViewModel
+import com.example.gemmachat.ui.theme.GemmaChatTheme
+import com.example.gemmachat.ui.triage.TriageScreen
+import com.example.gemmachat.ui.triage.TriageViewModel
+
+private object Routes {
+    const val ONBOARDING = "onboarding"
+    const val HOME = "home"
+    const val TRIAGE = "triage"
+    const val FIRSTAID = "firstaid"
+    const val GIS = "gis"
+    const val CHAT = "chat"
+    const val SETTINGS = "settings"
+}
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent {
+            GemmaChatTheme {
+                DishaNavHost()
+            }
+        }
+    }
+}
+
+@Composable
+private fun DishaNavHost() {
+    val context = LocalContext.current
+    val start =
+        if (HfDownloadRepository.modelFile(context).exists()) Routes.HOME else Routes.ONBOARDING
+    val navController = rememberNavController()
+
+    fun appFactory() =
+        androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.getInstance(
+            context.applicationContext as android.app.Application,
+        )
+
+    NavHost(navController = navController, startDestination = start) {
+        composable(Routes.ONBOARDING) {
+            val vm: OnboardingViewModel = viewModel(factory = appFactory())
+            OnboardingScreen(
+                viewModel = vm,
+                onFinished = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.ONBOARDING) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
+        composable(Routes.HOME) {
+            DishaHomeScreen(
+                onTriage = { navController.navigate(Routes.TRIAGE) },
+                onFirstAid = { navController.navigate(Routes.FIRSTAID) },
+                onGis = { navController.navigate(Routes.GIS) },
+                onChat = { navController.navigate(Routes.CHAT) },
+            )
+        }
+        composable(Routes.TRIAGE) {
+            val vm: TriageViewModel = viewModel(factory = appFactory())
+            TriageScreen(viewModel = vm, onBack = { navController.popBackStack() })
+        }
+        composable(Routes.FIRSTAID) {
+            val vm: FirstAidViewModel = viewModel(factory = appFactory())
+            FirstAidScreen(viewModel = vm, onBack = { navController.popBackStack() })
+        }
+        composable(Routes.GIS) {
+            val vm: GisViewModel = viewModel(factory = appFactory())
+            GisScreen(viewModel = vm, onBack = { navController.popBackStack() })
+        }
+        composable(Routes.CHAT) {
+            val vm: ChatViewModel = viewModel(factory = appFactory())
+            ChatScreen(
+                viewModel = vm,
+                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                onNeedModel = {
+                    navController.navigate(Routes.ONBOARDING) {
+                        popUpTo(Routes.CHAT) { inclusive = true }
+                    }
+                },
+            )
+        }
+        composable(Routes.SETTINGS) {
+            val vm: SettingsViewModel = viewModel(factory = appFactory())
+            SettingsScreen(viewModel = vm, onBack = { navController.popBackStack() })
+        }
+    }
+}
