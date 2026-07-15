@@ -1,0 +1,42 @@
+# ---- Android / Gradle ----
+disha-android/.gradle/
+disha-android/build/
+disha-android/app/build/
+disha-android/captures/
+disha-android/.cxx/
+**/build/
+.gradle/
+local.properties
+*.apk
+*.aab
+*.keystore
+*.jks
+disha-android/keystore.properties
+
+# On-device model weights (huge; downloaded on device / Kaggle)
+*.litertlm
+*.task
+*.gguf
+
+# ---- IDEs ----
+.idea/
+*.iml
+.vscode/
+
+# ---- Python ----
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+venv/
+
+# ---- Logs, screenshots, scratch (debugging artifacts) ----
+*.log
+pixel_*.png
+scratch_*.png
+emulator.log
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
