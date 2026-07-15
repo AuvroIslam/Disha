@@ -22,7 +22,11 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -50,6 +54,9 @@ private val EXAMPLES = listOf(
 fun TriageScreen(viewModel: TriageViewModel, onBack: () -> Unit) {
     val ui by viewModel.ui.collectAsState()
     var text by remember { mutableStateOf("") }
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let { viewModel.setImageFromUri(it) }
+    }
 
     Scaffold(
         topBar = {
@@ -106,10 +113,24 @@ fun TriageScreen(viewModel: TriageViewModel, onBack: () -> Unit) {
             }
 
             Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedButton(onClick = {
+                    photoPicker.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                }) { Text("📷 Attach photo") }
+                if (ui.imagePath != null) {
+                    Spacer(Modifier.width(8.dp))
+                    Text("attached ✓", color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = { viewModel.clearImage() }) { Text("remove") }
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
             Row {
                 Button(
                     onClick = { viewModel.triage(text) },
-                    enabled = !ui.busy && text.isNotBlank(),
+                    enabled = !ui.busy && (text.isNotBlank() || ui.imagePath != null),
                 ) {
                     if (ui.busy) {
                         CircularProgressIndicator(Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)

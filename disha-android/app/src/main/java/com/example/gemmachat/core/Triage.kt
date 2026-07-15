@@ -100,11 +100,10 @@ object Triage {
         return (errs.isEmpty()) to errs
     }
 
-    /** Triage one SOS. Uses [gemma] if it yields valid JSON, else the deterministic fallback. */
-    fun triageSos(sos: SosReport, gemma: LlmEngine? = null): TriageResult {
-        if (gemma == null) return fallbackTriage(sos)
-        val user = "SOS: ${sos.text}\nJSON:"
-        val raw = gemma.generate(Prompts.TRIAGE_SYSTEM, user, temperature = 0.3, maxTokens = 256)
+    fun triageUserPrompt(text: String): String = "SOS: $text\nJSON:"
+
+    /** Parse a raw model response into a TriageResult, or fall back to rules if invalid. */
+    fun fromRawOrFallback(sos: SosReport, raw: String, modelName: String): TriageResult {
         val obj = extractJson(raw)
         val (ok, _) = validateTriage(obj)
         if (!ok || obj == null) return fallbackTriage(sos)
@@ -116,8 +115,16 @@ object Triage {
             needsHumanReview = obj.get("needs_human_review").asBoolean,
             rationale = obj.get("rationale").asString,
             recommendedAction = obj.get("recommended_action").asString,
-            model = gemma.modelName, producedBy = "gemma",
+            model = modelName, producedBy = "gemma",
         )
+    }
+
+    /** Triage one SOS. Uses [gemma] if it yields valid JSON, else the deterministic fallback. */
+    fun triageSos(sos: SosReport, gemma: LlmEngine? = null): TriageResult {
+        if (gemma == null) return fallbackTriage(sos)
+        val raw = gemma.generate(Prompts.TRIAGE_SYSTEM, triageUserPrompt(sos.text),
+            temperature = 0.3, maxTokens = 256)
+        return fromRawOrFallback(sos, raw, gemma.modelName)
     }
 
     fun sortQueue(results: List<TriageResult>): List<TriageResult> =

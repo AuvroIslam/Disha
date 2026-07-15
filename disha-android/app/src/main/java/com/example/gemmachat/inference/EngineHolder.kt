@@ -95,6 +95,7 @@ class EngineHolder(private val context: Context) {
         temperature: Double,
         topK: Int = 40,
         topP: Double = 0.95,
+        imagePath: String? = null,
     ): String = mutex.withLock {
         withContext(Dispatchers.IO) {
             val eng = engine ?: return@withContext ""
@@ -108,7 +109,14 @@ class EngineHolder(private val context: Context) {
             val conv = eng.createConversation(cfg)
             try {
                 val sb = StringBuilder()
-                conv.sendMessageAsync(user, emptyMap()).collect { msg -> sb.append(textFromMessage(msg)) }
+                val hasImage = imagePath != null && File(imagePath).exists()
+                val flow = if (hasImage) {
+                    conv.sendMessageAsync(
+                        Contents.of(Content.Text(user), Content.ImageFile(imagePath!!)), emptyMap())
+                } else {
+                    conv.sendMessageAsync(user, emptyMap())
+                }
+                flow.collect { msg -> sb.append(textFromMessage(msg)) }
                 sb.toString()
             } finally {
                 try {

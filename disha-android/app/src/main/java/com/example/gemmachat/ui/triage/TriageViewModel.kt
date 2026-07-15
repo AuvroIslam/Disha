@@ -1,9 +1,11 @@
 package com.example.gemmachat.ui.triage
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gemmachat.GemmaChatApplication
+import com.example.gemmachat.core.Prompts
 import com.example.gemmachat.core.SosReport
 import com.example.gemmachat.core.Triage
 import com.example.gemmachat.core.TriageResult
@@ -14,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 data class TriagedItem(val text: String, val result: TriageResult)
 
@@ -22,6 +25,7 @@ data class TriageUiState(
     val engineReady: Boolean = false,
     val busy: Boolean = false,
     val queue: List<TriagedItem> = emptyList(),
+    val imagePath: String? = null,
     val error: String? = null,
 )
 
@@ -44,19 +48,48 @@ class TriageViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun setImageFromUri(uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val ctx = getApplication<Application>()
+                val file = File(ctx.cacheDir, "triage_${System.currentTimeMillis()}.jpg")
+                ctx.contentResolver.openInputStream(uri)?.use { input ->
+                    file.outputStream().use { input.copyTo(it) }
+                }
+                _ui.value = _ui.value.copy(imagePath = file.absolutePath)
+            } catch (e: Exception) {
+                _ui.value = _ui.value.copy(error = "Image: ${e.message}")
+            }
+        }
+    }
+
+    fun clearImage() {
+        _ui.value = _ui.value.copy(imagePath = null)
+    }
+
     fun triage(text: String) {
         val t = text.trim()
-        if (t.isEmpty() || _ui.value.busy) return
+        val img = _ui.value.imagePath
+        if ((t.isEmpty() && img == null) || _ui.value.busy) return
         viewModelScope.launch {
             _ui.value = _ui.value.copy(busy = true, error = null)
             try {
-                val useGemma = app.engineHolder.isReady()
+                val ready = app.engineHolder.isReady()
+                val sos = SosReport(text = t.ifEmpty { "(photo of the scene)" }, imagePath = img)
                 val result = withContext(Dispatchers.Default) {
-                    Triage.triageSos(SosReport(text = t), if (useGemma) engine else null)
+                    if (ready && img != null) {
+                        val raw = app.engineHolder.generateWith(
+                            Prompts.TRIAGE_SYSTEM, Triage.triageUserPrompt(sos.text),
+                            temperature = 0.3, imagePath = img)
+                        Triage.fromRawOrFallback(sos, raw, "gemma-4-e2b")
+                    } else {
+                        Triage.triageSos(sos, if (ready) engine else null)
+                    }
                 }
-                val queue = (_ui.value.queue + TriagedItem(t, result))
+                val label = if (img != null) "📷 ${sos.text}" else sos.text
+                val queue = (_ui.value.queue + TriagedItem(label, result))
                     .sortedWith(compareBy({ rank[it.result.priority] }, { -it.result.urgencyScore }))
-                _ui.value = _ui.value.copy(busy = false, queue = queue)
+                _ui.value = _ui.value.copy(busy = false, queue = queue, imagePath = null)
             } catch (e: Exception) {
                 _ui.value = _ui.value.copy(busy = false, error = e.message)
             }
