@@ -1,0 +1,16 @@
+# Disha reasoning core has NO hard dependencies (pure stdlib) — runs and tests
+# with MockGemma out of the box.
+#
+# The following are only needed for the real Gemma 4 path (Kaggle GPU notebook)
+# and optional extras. Gemma 4 is the ONLY LLM used (competition rule).
+
+# --- Real on-device/Kaggle Gemma 4 inference ---
+transformers>=4.44
+torch>=2.1
+pillow>=10.0            # multimodal image input
+
+# --- Optional: semantic vector RAG (MiniLM embeddings; a NON-LLM supporting model) ---
+# sentence-transformers>=3.0
+
+# --- Optional: notebook map visualization ---
+# matplotlib>=3.7
