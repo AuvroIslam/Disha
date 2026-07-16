@@ -18,6 +18,7 @@ import com.example.gemmachat.ui.firstaid.FirstAidScreen
 import com.example.gemmachat.ui.firstaid.FirstAidViewModel
 import com.example.gemmachat.ui.gis.GisScreen
 import com.example.gemmachat.ui.gis.GisViewModel
+import com.example.gemmachat.ui.guide.GuideScreen
 import com.example.gemmachat.ui.home.DishaHomeScreen
 import com.example.gemmachat.ui.mesh.MeshScreen
 import com.example.gemmachat.ui.mesh.MeshViewModel
@@ -39,6 +40,7 @@ private object Routes {
     const val GIS = "gis"
     const val SUMMARY = "summary"
     const val MESH = "mesh"
+    const val GUIDE = "guide"
     const val CHAT = "chat"
     const val SETTINGS = "settings"
 }
@@ -87,6 +89,8 @@ private fun DishaNavHost() {
                 onSummary = { navController.navigate(Routes.SUMMARY) },
                 onMesh = { navController.navigate(Routes.MESH) },
                 onChat = { navController.navigate(Routes.CHAT) },
+                onGuide = { navController.navigate(Routes.GUIDE) },
+                onSettings = { navController.navigate(Routes.SETTINGS) },
             )
         }
         composable(Routes.TRIAGE) {
@@ -108,6 +112,9 @@ private fun DishaNavHost() {
         composable(Routes.MESH) {
             val vm: MeshViewModel = viewModel(factory = appFactory())
             MeshScreen(viewModel = vm, onBack = { navController.popBackStack() })
+        }
+        composable(Routes.GUIDE) {
+            GuideScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.CHAT) {
             val vm: ChatViewModel = viewModel(factory = appFactory())

@@ -36,6 +36,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.gemmachat.R
+import com.example.gemmachat.ui.components.HeroBanner
 
 private val EXAMPLES = listOf(
     "Someone is bleeding heavily from a deep cut on the leg.",
@@ -65,6 +67,9 @@ fun FirstAidScreen(viewModel: FirstAidViewModel, onBack: () -> Unit) {
         Column(
             Modifier.padding(pad).padding(16.dp).fillMaxSize().verticalScroll(rememberScrollState()),
         ) {
+            HeroBanner(R.drawable.hero_firstaid, 128.dp,
+                title = "First Aid", subtitle = "Cited, step-by-step guidance")
+            Spacer(Modifier.height(12.dp))
             when {
                 ui.engineLoading -> Row(verticalAlignment = Alignment.CenterVertically) {
                     CircularProgressIndicator(Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)

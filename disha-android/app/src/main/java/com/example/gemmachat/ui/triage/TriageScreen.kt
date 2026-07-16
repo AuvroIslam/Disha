@@ -41,6 +41,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.gemmachat.R
+import com.example.gemmachat.ui.components.HeroBanner
 
 private val EXAMPLES = listOf(
     "Pregnant woman trapped on the rooftop, water is still rising fast, no food since morning.",
@@ -73,6 +75,9 @@ fun TriageScreen(viewModel: TriageViewModel, onBack: () -> Unit) {
         Column(
             Modifier.padding(pad).padding(16.dp).fillMaxSize(),
         ) {
+            HeroBanner(R.drawable.hero_triage, 118.dp,
+                title = "Rescue Triage", subtitle = "Prioritise SOS by urgency")
+            Spacer(Modifier.height(12.dp))
             // engine status line
             when {
                 ui.engineLoading -> Row(verticalAlignment = Alignment.CenterVertically) {

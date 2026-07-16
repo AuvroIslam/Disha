@@ -38,6 +38,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.gemmachat.R
+import com.example.gemmachat.ui.components.HeroBanner
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 
@@ -89,6 +91,10 @@ fun MeshScreen(viewModel: MeshViewModel, onBack: () -> Unit) {
 
             LaunchedEffect(Unit) { viewModel.start() }
             DisposableEffect(Unit) { onDispose { viewModel.stop() } }
+
+            HeroBanner(R.drawable.hero_mesh, 116.dp,
+                title = "Mesh SOS", subtitle = "Send SOS, no internet")
+            Spacer(Modifier.height(12.dp))
 
             Text("● ${ui.status}", style = MaterialTheme.typography.bodyMedium,
                 color = if (ui.peers > 0) MaterialTheme.colorScheme.primary

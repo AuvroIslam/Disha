@@ -35,7 +35,9 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.gemmachat.R
 import com.example.gemmachat.core.Gis
+import com.example.gemmachat.ui.components.HeroBanner
 
 private val FLOOD = Color(0xFF2196F3)
 private val ROAD = Color(0xFF9E9E9E)
@@ -73,6 +75,9 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
         Column(
             Modifier.padding(pad).padding(16.dp).fillMaxSize().verticalScroll(rememberScrollState()),
         ) {
+            HeroBanner(R.drawable.hero_shelter, 128.dp,
+                title = "Safe Shelter & Route", subtitle = "Nearest shelter, flood-safe route")
+            Spacer(Modifier.height(12.dp))
             Text("Offline map · Chattogram demo pack. Your location: Halishahar (near flooding).",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
 
