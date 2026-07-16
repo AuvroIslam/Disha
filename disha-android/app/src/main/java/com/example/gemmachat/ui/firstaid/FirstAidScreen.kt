@@ -68,7 +68,7 @@ fun FirstAidScreen(viewModel: FirstAidViewModel, onBack: () -> Unit) {
             Modifier.padding(pad).padding(16.dp).fillMaxSize().verticalScroll(rememberScrollState()),
         ) {
             HeroBanner(R.drawable.hero_firstaid,
-                title = "First Aid", subtitle = "Cited, step-by-step guidance")
+                title = "First Aid", subtitle = "Trusted, cited guidance")
             Spacer(Modifier.height(12.dp))
             when {
                 ui.engineLoading -> Row(verticalAlignment = Alignment.CenterVertically) {
@@ -77,7 +77,7 @@ fun FirstAidScreen(viewModel: FirstAidViewModel, onBack: () -> Unit) {
                     Text("Loading on-device Gemma 4…", style = MaterialTheme.typography.bodySmall)
                 }
                 ui.engineReady -> Text(
-                    "● Grounded in offline first-aid packs (WHO/IFRC/Red Cross), answered by Gemma 4.",
+                    "● Grounded in offline first aid guidance (WHO, IFRC, Red Cross), answered by Gemma 4.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                 else -> Text("Model not loaded — showing the source passages directly.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
@@ -104,7 +104,7 @@ fun FirstAidScreen(viewModel: FirstAidViewModel, onBack: () -> Unit) {
                     Spacer(Modifier.width(8.dp))
                     Text("Thinking on-device…")
                 } else {
-                    Text("Get First-Aid Steps")
+                    Text("Get First Aid Steps")
                 }
             }
 

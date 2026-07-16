@@ -54,17 +54,17 @@ private data class Feature(val emoji: String, val bg: Color, val title: String, 
 
 private val FEATURES = listOf(
     Feature("🚑", TileTriageBg, "Rescue Triage",
-        "Type or snap a photo of an SOS — I rank its urgency so the worst cases get help first."),
+        "Type or photograph an SOS and I rank its urgency, so the worst cases get help first."),
     Feature("🩹", TileAidBg, "First Aid",
-        "Describe an injury — I give cited, step-by-step first aid in Bangla + English."),
-    Feature("🗺️", TileShelterBg, "Safe Shelter & Route",
-        "I find the nearest safe (high-ground) shelter and a route that avoids flooded roads."),
+        "Describe an injury and I give clear, cited first aid in Bangla and English."),
+    Feature("🗺️", TileShelterBg, "Safe Shelter",
+        "I find the nearest safe shelter on high ground, and a way there that avoids flooding."),
     Feature("📋", TileSummaryBg, "Coordinator Summary",
-        "I turn all the field reports into one clear briefing — counts, top cases, shortages."),
+        "I turn all the field reports into one clear briefing with counts, top cases and shortages."),
     Feature("📡", TileMeshBg, "Mesh SOS",
-        "Send an SOS phone-to-phone with NO internet. Nearby phones relay it onward."),
+        "Send an SOS from phone to phone with no internet. Nearby phones pass it onward."),
     Feature("💬", TileChatBg, "AI Assistant",
-        "Ask me anything about flood safety or first aid — answered right on your phone."),
+        "Ask me anything about flood safety or first aid, answered right on your phone."),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -96,7 +96,7 @@ fun GuideScreen(onBack: () -> Unit) {
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.align(Alignment.CenterHorizontally))
             Spacer(Modifier.height(6.dp))
-            Text("Your offline flood-response helper. Everything runs on this phone — no internet needed.",
+            Text("Your offline flood helper. Everything runs on this phone, with no internet.",
                 color = TextSecondary, style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.fillMaxWidth())
 
@@ -115,7 +115,7 @@ fun GuideScreen(onBack: () -> Unit) {
                 title = "How to get around",
                 lines = listOf(
                     "1.  Tap any card on the Home screen to open a tool.",
-                    "2.  Use the  ←  back arrow (top-left) to return Home.",
+                    "2.  Use the  ←  back arrow at the top to return Home.",
                     "3.  In an emergency, start with Rescue Triage or Mesh SOS.",
                 ),
             )
@@ -125,10 +125,10 @@ fun GuideScreen(onBack: () -> Unit) {
                 mascot = R.drawable.mascot_3,
                 title = "Good to know",
                 lines = listOf(
-                    "• Everything works fully offline — even in airplane mode.",
-                    "• First Aid answers are grounded in WHO / IFRC guidance and cited.",
-                    "• Mesh SOS needs Bluetooth + Wi-Fi on; a second phone nearby to receive.",
-                    "• AI guidance supports, not replaces, professional help.",
+                    "• Everything works fully offline, even in airplane mode.",
+                    "• First Aid answers are grounded in WHO and IFRC guidance, and cited.",
+                    "• Mesh SOS needs Bluetooth and Wi-Fi on, plus a second phone nearby.",
+                    "• AI guidance supports, and does not replace, professional help.",
                 ),
             )
 

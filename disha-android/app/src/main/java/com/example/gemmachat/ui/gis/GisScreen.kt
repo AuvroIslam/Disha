@@ -21,6 +21,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -76,14 +77,24 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
             Modifier.padding(pad).padding(16.dp).fillMaxSize().verticalScroll(rememberScrollState()),
         ) {
             HeroBanner(R.drawable.hero_shelter,
-                title = "Safe Shelter & Route", subtitle = "Nearest shelter, flood-safe route")
+                title = "Safe Shelter", subtitle = "Nearest shelter, safest way there")
             Spacer(Modifier.height(12.dp))
             Text("Offline map · Chattogram demo pack. Your location: Halishahar (near flooding).",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
 
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Switch(checked = ui.elderly, onCheckedChange = { viewModel.setElderly(it) })
+                Switch(
+                    checked = ui.elderly,
+                    onCheckedChange = { viewModel.setElderly(it) },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = MaterialTheme.colorScheme.primary,
+                        uncheckedThumbColor = Color.White,
+                        uncheckedTrackColor = Color(0xFFC9C2E8),
+                        uncheckedBorderColor = Color(0xFFC9C2E8),
+                    ),
+                )
                 Spacer(Modifier.width(8.dp))
                 Text("Elderly / needs accessible shelter", style = MaterialTheme.typography.bodyMedium)
             }
@@ -187,7 +198,7 @@ private fun ShelterRow(s: Gis.RankedShelter) {
                 Text(s.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
                 if (s.onHighGround) {
                     Spacer(Modifier.width(8.dp))
-                    Text("HIGH-GROUND", style = MaterialTheme.typography.labelSmall,
+                    Text("HIGH GROUND", style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary)
                 }
             }

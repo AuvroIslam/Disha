@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -91,9 +92,11 @@ fun DishaHomeScreen(
                 modifier = Modifier.size(48.dp).clip(CircleShape))
             Spacer(Modifier.width(8.dp))
             Column {
-                Text("দিশা", color = AccentPurple, fontWeight = FontWeight.ExtraBold, fontSize = 26.sp)
+                Text("দিশা", color = AccentPurple, fontWeight = FontWeight.ExtraBold,
+                    fontSize = 26.sp, lineHeight = 26.sp)
                 Text("DISHA", color = AccentPurple, fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold, letterSpacing = 3.sp)
+                    fontWeight = FontWeight.Bold, letterSpacing = 3.sp,
+                    modifier = Modifier.offset(y = (-5).dp))
             }
             Spacer(Modifier.weight(1f))
             CircleIconButton(Icons.Filled.HelpOutline, onClick = onGuide)
@@ -154,7 +157,7 @@ fun DishaHomeScreen(
             left = { FeatureCard(TileTriageBg, TileTriageFg, Icons.Filled.Warning, "Rescue Triage",
                 "Prioritize SOS and urgent cases", onTriage, it) },
             right = { FeatureCard(TileAidBg, TileAidFg, Icons.Filled.MedicalServices, "First Aid",
-                "Step-by-step medical guidance", onFirstAid, it) },
+                "Simple, trusted medical guidance", onFirstAid, it) },
         )
         Spacer(Modifier.height(14.dp))
         FeatureRow(
