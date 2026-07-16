@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import com.example.gemmachat.R
 import com.example.gemmachat.core.Gis
 import com.example.gemmachat.ui.components.HeroBanner
+import com.example.gemmachat.ui.i18n.LocalBangla
 import com.example.gemmachat.ui.i18n.tr
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
@@ -59,13 +60,17 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
         viewModel.findNearestShelter()
     }
 
-    // bounding box over all geodata (for the mini-map projection)
-    val bbox = remember(ui.userLat, ui.userLon) {
+    // bounding box over the current geodata (for the mini-map projection)
+    val bbox = remember(ui.userLat, ui.userLon, ui.shelters, ui.detailed, ui.ranked) {
         val lats = ArrayList<Double>(); val lons = ArrayList<Double>()
-        viewModel.graph.nodes.values.forEach { lats.add(it[0]); lons.add(it[1]) }
-        viewModel.shelters.forEach { lats.add(it.lat); lons.add(it.lon) }
-        viewModel.floodPolys.forEach { r -> r.forEach { lats.add(it[1]); lons.add(it[0]) } }
+        ui.graph?.nodes?.values?.forEach { lats.add(it[0]); lons.add(it[1]) }
+        ui.floodPolys.forEach { r -> r.forEach { lats.add(it[1]); lons.add(it[0]) } }
+        // In the nationwide view only the nearest few shelters matter for framing.
+        val pts = if (ui.detailed) ui.shelters.map { it.lat to it.lon }
+        else ui.ranked.map { it.lat to it.lon }
+        pts.forEach { lats.add(it.first); lons.add(it.second) }
         lats.add(ui.userLat); lons.add(ui.userLon)
+        if (lats.size < 2) { lats.add(ui.userLat + 0.02); lons.add(ui.userLon + 0.02) }
         doubleArrayOf(lats.min(), lats.max(), lons.min(), lons.max())
     }
 
@@ -88,13 +93,17 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
                 title = tr("Safe Shelter", "নিরাপদ আশ্রয়"),
                 subtitle = tr("Nearest shelter, safest way there", "নিকটতম আশ্রয়, নিরাপদতম পথ"))
             Spacer(Modifier.height(12.dp))
+            val district = if (LocalBangla.current) ui.districtBn else ui.districtEn
             Text(
-                tr("Offline map · ${viewModel.regionName} region.",
-                    "অফলাইন মানচিত্র · ${viewModel.regionName} এলাকা।") + when {
-                    ui.locating -> tr(" Locating you via GPS…", " জিপিএস দিয়ে অবস্থান নেওয়া হচ্ছে…")
-                    ui.usingGps -> tr(" Using your live GPS location.", " আপনার লাইভ জিপিএস অবস্থান ব্যবহার হচ্ছে।")
-                    ui.computed -> tr(" GPS unavailable — using region centre.", " জিপিএস নেই — এলাকার কেন্দ্র ব্যবহার হচ্ছে।")
-                    else -> tr(" Grant location for a precise route.", " নির্ভুল পথের জন্য লোকেশন অনুমতি দিন।")
+                when {
+                    ui.locating -> tr("Locating you via GPS…", "জিপিএস দিয়ে অবস্থান নেওয়া হচ্ছে…")
+                    !ui.computed -> tr("Works anywhere in Bangladesh. Grant location for a precise result.",
+                        "বাংলাদেশের যেকোনো জায়গায় কাজ করে। নির্ভুল ফলাফলের জন্য লোকেশন অনুমতি দিন।")
+                    ui.detailed -> tr("You are in $district. Detailed offline map available.",
+                        "আপনি $district-এ আছেন। বিস্তারিত অফলাইন মানচিত্র রয়েছে।") +
+                        (if (ui.usingGps) "" else tr(" (GPS off — using region centre.)", " (জিপিএস বন্ধ — এলাকার কেন্দ্র।)"))
+                    else -> tr("You are in $district. No detailed map here yet — showing safe-direction guidance.",
+                        "আপনি $district-এ আছেন। এখানে বিস্তারিত মানচিত্র নেই — নিরাপদ দিকনির্দেশনা দেখানো হচ্ছে।")
                 },
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary,
             )
@@ -136,8 +145,9 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
                     fun ox(lon: Double) = (((lon - minLon) / dLon).toFloat()) * (w - 2 * p) + p
                     fun oy(lat: Double) = (((maxLat - lat) / dLat).toFloat()) * (h - 2 * p) + p
 
+                    val dash = PathEffect.dashPathEffect(floatArrayOf(12f, 10f))
                     // flood polygon
-                    viewModel.floodPolys.forEach { ring ->
+                    ui.floodPolys.forEach { ring ->
                         val path = Path()
                         ring.forEachIndexed { i, pt ->
                             val x = ox(pt[0]); val y = oy(pt[1])
@@ -146,39 +156,52 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
                         path.close()
                         drawPath(path, FLOOD, alpha = 0.22f)
                     }
-                    // roads (red dashed = flooded)
-                    val dash = PathEffect.dashPathEffect(floatArrayOf(12f, 10f))
-                    viewModel.graph.edges.forEach { (u, v) ->
-                        val a = viewModel.graph.nodes.getValue(u)
-                        val b = viewModel.graph.nodes.getValue(v)
-                        val flooded = Gis.segmentCrossesFlood(a, b, viewModel.floodPolys)
-                        drawLine(
-                            color = if (flooded) FLOODED_ROAD else ROAD,
-                            start = Offset(ox(a[1]), oy(a[0])), end = Offset(ox(b[1]), oy(b[0])),
-                            strokeWidth = 3f, pathEffect = if (flooded) dash else null,
-                        )
+                    // roads (red dashed = flooded) — only in detailed mode
+                    ui.graph?.let { g ->
+                        g.edges.forEach { (u, v) ->
+                            val a = g.nodes.getValue(u); val b = g.nodes.getValue(v)
+                            val flooded = Gis.segmentCrossesFlood(a, b, ui.floodPolys)
+                            drawLine(
+                                color = if (flooded) FLOODED_ROAD else ROAD,
+                                start = Offset(ox(a[1]), oy(a[0])), end = Offset(ox(b[1]), oy(b[0])),
+                                strokeWidth = 3f, pathEffect = if (flooded) dash else null,
+                            )
+                        }
                     }
-                    // route (orange)
-                    ui.route?.polyline?.let { poly ->
+                    // detailed route (orange), else a dashed direction line to the nearest shelter
+                    val poly = ui.route?.polyline
+                    if (poly != null) {
                         for (i in 0 until poly.size - 1) {
                             drawLine(ROUTE,
                                 Offset(ox(poly[i][1]), oy(poly[i][0])),
                                 Offset(ox(poly[i + 1][1]), oy(poly[i + 1][0])), strokeWidth = 8f)
                         }
+                    } else ui.ranked.firstOrNull()?.let { top ->
+                        drawLine(ROUTE,
+                            Offset(ox(ui.userLon), oy(ui.userLat)),
+                            Offset(ox(top.lon), oy(top.lat)), strokeWidth = 5f, pathEffect = dash)
                     }
                     // shelters (green) + user (black)
-                    viewModel.shelters.forEach { s ->
+                    val shownShelters = if (ui.detailed) ui.shelters
+                    else ui.shelters.filter { s -> ui.ranked.any { it.lat == s.lat && it.lon == s.lon } }
+                    shownShelters.forEach { s ->
                         drawCircle(SHELTER, radius = 12f, center = Offset(ox(s.lon), oy(s.lat)))
                     }
                     drawCircle(Color.Black, radius = 12f,
                         center = Offset(ox(ui.userLon), oy(ui.userLat)))
                 }
             }
-            Text("● you   ● shelter   ▬ safe route   ┈ flooded road   ▨ flood zone",
+            Text(
+                if (ui.detailed)
+                    tr("● you   ● shelter   ▬ safe route   ┈ flooded road   ▨ flood zone",
+                        "● আপনি   ● আশ্রয়   ▬ নিরাপদ পথ   ┈ বন্যা রাস্তা   ▨ বন্যা এলাকা")
+                else tr("● you   ● nearest shelter   ┈ direction",
+                    "● আপনি   ● নিকটতম আশ্রয়   ┈ দিক"),
                 style = MaterialTheme.typography.labelSmall,
                 modifier = Modifier.padding(top = 4.dp))
 
             // ---- results ---- //
+            // Detailed mode: flood-avoiding walking route card.
             ui.route?.let { r ->
                 Spacer(Modifier.height(12.dp))
                 Card(Modifier.fillMaxWidth()) {
@@ -186,7 +209,7 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
                         val top = ui.ranked.firstOrNull()
                         Text("→ ${top?.name ?: tr("Shelter", "আশ্রয়")}",
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text("${tr("Walking route", "হাঁটার পথ")}: ${r.distM} m",
+                        Text("${tr("Walking route", "হাঁটার পথ")}: ${fmtDist(r.distM)}",
                             style = MaterialTheme.typography.bodyMedium)
                         Text(
                             if (r.crossesFlood)
@@ -203,15 +226,37 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
                 }
             }
 
+            // Nationwide fallback: safe-direction guidance (no detailed pack for this district).
+            if (ui.computed && !ui.detailed) {
+                Spacer(Modifier.height(12.dp))
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text(tr("Move to safety", "নিরাপদে সরে যান"),
+                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            tr("Head to the nearest high ground or a strong multi-storey building — a school, " +
+                                "college or Union Parishad often serves as a flood shelter. Do not cross " +
+                                "fast-moving water; even knee-deep flow can sweep you away.",
+                                "নিকটতম উঁচু জায়গা বা মজবুত বহুতল ভবনে যান — স্কুল, কলেজ বা ইউনিয়ন পরিষদ প্রায়ই " +
+                                    "বন্যা আশ্রয় হিসেবে ব্যবহৃত হয়। দ্রুত বয়ে চলা পানি পার হবেন না; হাঁটু-সমান স্রোতও " +
+                                    "আপনাকে ভাসিয়ে নিতে পারে।"),
+                            style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+
             if (ui.ranked.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
-                Text(tr("Ranked shelters", "সাজানো আশ্রয়কেন্দ্র"),
+                Text(
+                    if (ui.detailed) tr("Ranked shelters", "সাজানো আশ্রয়কেন্দ্র")
+                    else tr("Nearest known shelters", "নিকটতম পরিচিত আশ্রয়"),
                     style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 ui.ranked.forEach { s -> ShelterRow(s) }
             } else if (!ui.computed) {
                 Spacer(Modifier.height(12.dp))
-                Text(tr("Tap “Find nearest safe shelter” to rank shelters and draw a flood-avoiding route.",
-                    "“নিকটতম নিরাপদ আশ্রয় খুঁজুন”-এ চাপ দিন — আশ্রয় সাজানো হবে ও বন্যা এড়ানো পথ আঁকা হবে।"),
+                Text(tr("Tap “Find nearest safe shelter”. It uses your GPS and works anywhere in Bangladesh.",
+                    "“নিকটতম নিরাপদ আশ্রয় খুঁজুন”-এ চাপ দিন। এটি আপনার জিপিএস ব্যবহার করে, বাংলাদেশের যেকোনো জায়গায় কাজ করে।"),
                     style = MaterialTheme.typography.bodySmall)
             }
         }
@@ -230,9 +275,11 @@ private fun ShelterRow(s: Gis.RankedShelter) {
                         color = MaterialTheme.colorScheme.primary)
                 }
             }
-            Text("${s.distM} m · ${s.capacityLeft} ${tr("spaces free", "জায়গা খালি")} · " +
+            Text("${fmtDist(s.distM)} · ${s.capacityLeft} ${tr("spaces free", "জায়গা খালি")} · " +
                 "${tr("score", "স্কোর")} ${"%.3f".format(s.score)}",
                 style = MaterialTheme.typography.bodySmall)
         }
     }
 }
+
+private fun fmtDist(m: Int): String = if (m >= 1000) "%.1f km".format(m / 1000.0) else "$m m"

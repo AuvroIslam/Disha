@@ -144,8 +144,10 @@ fun SettingsScreen(
             SectionLabel(tr("Offline region packs", "অফলাইন এলাকা প্যাক"))
             Text(
                 tr(
-                    "Maps, shelters and flood zones are bundled for offline use. Choose your area.",
-                    "মানচিত্র, আশ্রয়কেন্দ্র ও বন্যা এলাকা অফলাইনের জন্য অ্যাপে রয়েছে। আপনার এলাকা বেছে নিন।",
+                    "Shelter finder and district detection work anywhere in Bangladesh (all 64 districts). " +
+                        "These areas add a detailed offline map with flood-avoiding routes.",
+                    "আশ্রয় খোঁজা ও জেলা শনাক্তকরণ বাংলাদেশের যেকোনো জায়গায় কাজ করে (৬৪টি জেলা)। " +
+                        "এই এলাকাগুলোতে বন্যা এড়ানো পথসহ বিস্তারিত অফলাইন মানচিত্র রয়েছে।",
                 ),
                 color = TextSecondary, style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(bottom = 8.dp),
