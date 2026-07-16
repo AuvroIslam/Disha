@@ -3,11 +3,16 @@ package com.example.gemmachat.ui.mesh
 import android.app.Application
 import android.os.Build
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.gemmachat.GemmaChatApplication
 import com.example.gemmachat.core.SosReport
 import com.example.gemmachat.core.Triage
+import com.example.gemmachat.data.Regions
+import com.example.gemmachat.data.SosEntry
 import com.example.gemmachat.mesh.MeshManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 data class MeshMsg(
     val text: String,
@@ -28,6 +33,7 @@ data class MeshUiState(
 
 class MeshViewModel(application: Application) : AndroidViewModel(application) {
 
+    private val app = application as GemmaChatApplication
     val localName = "Disha ${Build.MODEL}".take(48)
     private var mgr: MeshManager? = null
 
@@ -42,7 +48,11 @@ class MeshViewModel(application: Application) : AndroidViewModel(application) {
             onPeersChanged = { p -> _ui.value = _ui.value.copy(peers = p) },
             onReceived = { env, ok, hops ->
                 val text = env.payload["text"] as? String ?: ""
-                val tr = Triage.fallbackTriage(SosReport(text = text))
+                val lat = (env.payload["lat"] as? String)?.toDoubleOrNull()
+                val lon = (env.payload["lon"] as? String)?.toDoubleOrNull()
+                val sos = SosReport(text = text, lat = lat, lon = lon, hops = hops)
+                val tr = Triage.fallbackTriage(sos)
+                app.sosRepository.add(SosEntry(sos, tr, source = "mesh_recv", verified = ok, hops = hops))
                 val msg = MeshMsg(text, env.sender, ok, hops, tr.priority, tr.color, mine = false)
                 _ui.value = _ui.value.copy(messages = _ui.value.messages + msg)
             },
@@ -54,10 +64,18 @@ class MeshViewModel(application: Application) : AndroidViewModel(application) {
         val t = text.trim()
         if (t.isEmpty()) return
         val m = mgr ?: return
-        m.sendSos(t, 22.330, 91.820)
-        val tr = Triage.fallbackTriage(SosReport(text = t))
-        val msg = MeshMsg(t, localName, true, 0, tr.priority, tr.color, mine = true)
-        _ui.value = _ui.value.copy(messages = _ui.value.messages + msg)
+        viewModelScope.launch {
+            val loc = app.locationProvider.current()
+            val region = Regions.byId(app.prefs.activeRegion.value)
+            val lat = loc?.first ?: region.centerLat
+            val lon = loc?.second ?: region.centerLon
+            m.sendSos(t, lat, lon)
+            val sos = SosReport(text = t, lat = lat, lon = lon, reporterRole = "volunteer")
+            val tr = Triage.fallbackTriage(sos)
+            app.sosRepository.add(SosEntry(sos, tr, source = "mesh_sent"))
+            val msg = MeshMsg(t, localName, true, 0, tr.priority, tr.color, mine = true)
+            _ui.value = _ui.value.copy(messages = _ui.value.messages + msg)
+        }
     }
 
     fun stop() {

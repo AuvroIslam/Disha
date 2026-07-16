@@ -26,6 +26,18 @@ class EngineHolder(private val context: Context) {
     private var engine: Engine? = null
     private var conversation: Conversation? = null
 
+    /** When true, every Gemma response is instructed to be in Bangla. Set from app language. */
+    @Volatile
+    var respondInBangla: Boolean = false
+
+    private fun langDirective(): String =
+        if (respondInBangla) {
+            "\n\nIMPORTANT: Write your entire response in Bangla (বাংলা) only. " +
+                "Numbers, place names and citation tags may stay as-is."
+        } else {
+            ""
+        }
+
     suspend fun loadModel(modelFile: File): Result<Unit> = mutex.withLock {
         withContext(Dispatchers.IO) {
             try {
@@ -103,7 +115,7 @@ class EngineHolder(private val context: Context) {
             // run our task-specific one, then restore the main session.
             closeConversationLocked()
             val cfg = ConversationConfig(
-                systemInstruction = Contents.of(system),
+                systemInstruction = Contents.of(system + langDirective()),
                 samplerConfig = SamplerConfig(topK = topK, topP = topP, temperature = temperature),
             )
             val conv = eng.createConversation(cfg)
@@ -147,7 +159,7 @@ class EngineHolder(private val context: Context) {
                 - Supported app names: zomato, youtube, whatsapp, maps, chrome, browser.
                 - Only emit an action tag when the user's request genuinely implies an external app handoff.
                 - Never emit more than one app_action tag.
-                """.trimIndent(),
+                """.trimIndent() + langDirective(),
             ),
             samplerConfig = SamplerConfig(
                 topK = 64,

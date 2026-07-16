@@ -97,6 +97,7 @@ dependencies {
     implementation(libs.accompanist.permissions)
     implementation(libs.coil.compose)
     implementation(libs.play.services.nearby)
+    implementation(libs.play.services.location)
     implementation(libs.lucide.icons)
 
     debugImplementation(libs.androidx.ui.tooling)

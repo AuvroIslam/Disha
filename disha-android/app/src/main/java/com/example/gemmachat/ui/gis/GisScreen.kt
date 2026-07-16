@@ -1,5 +1,6 @@
 package com.example.gemmachat.ui.gis
 
+import android.Manifest
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,6 +40,10 @@ import androidx.compose.ui.unit.dp
 import com.example.gemmachat.R
 import com.example.gemmachat.core.Gis
 import com.example.gemmachat.ui.components.HeroBanner
+import com.example.gemmachat.ui.i18n.tr
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 
 private val FLOOD = Color(0xFF2196F3)
 private val ROAD = Color(0xFF9E9E9E)
@@ -46,25 +51,28 @@ private val FLOODED_ROAD = Color(0xFFE53935)
 private val ROUTE = Color(0xFFFF9800)
 private val SHELTER = Color(0xFF43A047)
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
     val ui by viewModel.ui.collectAsState()
+    val locationPerm = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION) {
+        viewModel.findNearestShelter()
+    }
 
     // bounding box over all geodata (for the mini-map projection)
-    val bbox = remember {
+    val bbox = remember(ui.userLat, ui.userLon) {
         val lats = ArrayList<Double>(); val lons = ArrayList<Double>()
         viewModel.graph.nodes.values.forEach { lats.add(it[0]); lons.add(it[1]) }
         viewModel.shelters.forEach { lats.add(it.lat); lons.add(it.lon) }
         viewModel.floodPolys.forEach { r -> r.forEach { lats.add(it[1]); lons.add(it[0]) } }
-        lats.add(viewModel.userLat); lons.add(viewModel.userLon)
+        lats.add(ui.userLat); lons.add(ui.userLon)
         doubleArrayOf(lats.min(), lats.max(), lons.min(), lons.max())
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Disha · Safe Shelter & Route") },
+                title = { Text(tr("Disha · Safe Shelter & Route", "দিশা · নিরাপদ আশ্রয় ও পথ")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(FeatherIcons.ArrowLeft, contentDescription = "Back")
@@ -77,10 +85,19 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
             Modifier.padding(pad).padding(16.dp).fillMaxSize().verticalScroll(rememberScrollState()),
         ) {
             HeroBanner(R.drawable.hero_shelter,
-                title = "Safe Shelter", subtitle = "Nearest shelter, safest way there")
+                title = tr("Safe Shelter", "নিরাপদ আশ্রয়"),
+                subtitle = tr("Nearest shelter, safest way there", "নিকটতম আশ্রয়, নিরাপদতম পথ"))
             Spacer(Modifier.height(12.dp))
-            Text("Offline map · Chattogram demo pack. Your location: Halishahar (near flooding).",
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+            Text(
+                tr("Offline map · ${viewModel.regionName} region.",
+                    "অফলাইন মানচিত্র · ${viewModel.regionName} এলাকা।") + when {
+                    ui.locating -> tr(" Locating you via GPS…", " জিপিএস দিয়ে অবস্থান নেওয়া হচ্ছে…")
+                    ui.usingGps -> tr(" Using your live GPS location.", " আপনার লাইভ জিপিএস অবস্থান ব্যবহার হচ্ছে।")
+                    ui.computed -> tr(" GPS unavailable — using region centre.", " জিপিএস নেই — এলাকার কেন্দ্র ব্যবহার হচ্ছে।")
+                    else -> tr(" Grant location for a precise route.", " নির্ভুল পথের জন্য লোকেশন অনুমতি দিন।")
+                },
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary,
+            )
 
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -96,11 +113,16 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
                     ),
                 )
                 Spacer(Modifier.width(8.dp))
-                Text("Elderly / needs accessible shelter", style = MaterialTheme.typography.bodyMedium)
+                Text(tr("Elderly / needs accessible shelter", "বয়স্ক / সুবিধাজনক আশ্রয় প্রয়োজন"),
+                    style = MaterialTheme.typography.bodyMedium)
             }
             Spacer(Modifier.height(8.dp))
-            Button(onClick = { viewModel.findNearestShelter() }) {
-                Text("Find nearest safe shelter")
+            Button(onClick = {
+                if (locationPerm.status.isGranted) viewModel.findNearestShelter()
+                else locationPerm.launchPermissionRequest()
+            }) {
+                Text(if (ui.locating) tr("Locating…", "অবস্থান নেওয়া হচ্ছে…")
+                    else tr("Find nearest safe shelter", "নিকটতম নিরাপদ আশ্রয় খুঁজুন"))
             }
 
             // ---- mini map ---- //
@@ -149,7 +171,7 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
                         drawCircle(SHELTER, radius = 12f, center = Offset(ox(s.lon), oy(s.lat)))
                     }
                     drawCircle(Color.Black, radius = 12f,
-                        center = Offset(ox(viewModel.userLon), oy(viewModel.userLat)))
+                        center = Offset(ox(ui.userLon), oy(ui.userLat)))
                 }
             }
             Text("● you   ● shelter   ▬ safe route   ┈ flooded road   ▨ flood zone",
@@ -162,13 +184,18 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp)) {
                         val top = ui.ranked.firstOrNull()
-                        Text("→ ${top?.name ?: "Shelter"}",
+                        Text("→ ${top?.name ?: tr("Shelter", "আশ্রয়")}",
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text("Walking route: ${r.distM} m", style = MaterialTheme.typography.bodyMedium)
+                        Text("${tr("Walking route", "হাঁটার পথ")}: ${r.distM} m",
+                            style = MaterialTheme.typography.bodyMedium)
                         Text(
-                            if (r.crossesFlood) "⚠ No fully dry route — this path crosses floodwater."
-                            else "✓ Route avoids flooded roads" +
-                                if (ui.naiveCrossesFlood) " (the direct line would have crossed flooding)." else ".",
+                            if (r.crossesFlood)
+                                tr("⚠ No fully dry route — this path crosses floodwater.",
+                                    "⚠ সম্পূর্ণ শুকনো পথ নেই — এই পথ বন্যার পানি পার হয়।")
+                            else tr("✓ Route avoids flooded roads", "✓ পথটি বন্যা কবলিত রাস্তা এড়ায়") +
+                                if (ui.naiveCrossesFlood)
+                                    tr(" (the direct line would have crossed flooding).",
+                                        " (সরাসরি পথ বন্যা পার হতো)।") else ".",
                             style = MaterialTheme.typography.bodySmall,
                             color = if (r.crossesFlood) MaterialTheme.colorScheme.error
                             else MaterialTheme.colorScheme.primary)
@@ -178,12 +205,13 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
 
             if (ui.ranked.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
-                Text("Ranked shelters", style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold)
+                Text(tr("Ranked shelters", "সাজানো আশ্রয়কেন্দ্র"),
+                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 ui.ranked.forEach { s -> ShelterRow(s) }
             } else if (!ui.computed) {
                 Spacer(Modifier.height(12.dp))
-                Text("Tap “Find nearest safe shelter” to rank shelters and draw a flood-avoiding route.",
+                Text(tr("Tap “Find nearest safe shelter” to rank shelters and draw a flood-avoiding route.",
+                    "“নিকটতম নিরাপদ আশ্রয় খুঁজুন”-এ চাপ দিন — আশ্রয় সাজানো হবে ও বন্যা এড়ানো পথ আঁকা হবে।"),
                     style = MaterialTheme.typography.bodySmall)
             }
         }
@@ -198,11 +226,12 @@ private fun ShelterRow(s: Gis.RankedShelter) {
                 Text(s.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
                 if (s.onHighGround) {
                     Spacer(Modifier.width(8.dp))
-                    Text("HIGH GROUND", style = MaterialTheme.typography.labelSmall,
+                    Text(tr("HIGH GROUND", "উঁচু জায়গা"), style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary)
                 }
             }
-            Text("${s.distM} m · ${s.capacityLeft} spaces free · score ${"%.3f".format(s.score)}",
+            Text("${s.distM} m · ${s.capacityLeft} ${tr("spaces free", "জায়গা খালি")} · " +
+                "${tr("score", "স্কোর")} ${"%.3f".format(s.score)}",
                 style = MaterialTheme.typography.bodySmall)
         }
     }

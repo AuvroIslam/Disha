@@ -5,13 +5,20 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.gemmachat.core.Triage
+import com.example.gemmachat.data.RegionAssets
+import com.example.gemmachat.data.SosEntry
 import com.example.gemmachat.data.download.HfDownloadRepository
+import com.example.gemmachat.ui.i18n.LocalBangla
 import com.example.gemmachat.ui.chat.ChatScreen
 import com.example.gemmachat.ui.chat.ChatViewModel
 import com.example.gemmachat.ui.firstaid.FirstAidScreen
@@ -61,6 +68,9 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun DishaNavHost() {
     val context = LocalContext.current
+    val app = context.applicationContext as GemmaChatApplication
+    val language by app.prefs.language.collectAsState()
+    app.engineHolder.respondInBangla = language == "bn"
     val start =
         if (HfDownloadRepository.modelFile(context).exists()) Routes.HOME else Routes.ONBOARDING
     val navController = rememberNavController()
@@ -70,6 +80,7 @@ private fun DishaNavHost() {
             context.applicationContext as android.app.Application,
         )
 
+    CompositionLocalProvider(LocalBangla provides (language == "bn")) {
     NavHost(navController = navController, startDestination = start) {
         composable(Routes.ONBOARDING) {
             val vm: OnboardingViewModel = viewModel(factory = appFactory())
@@ -91,6 +102,13 @@ private fun DishaNavHost() {
                 onChat = { navController.navigate(Routes.CHAT) },
                 onGuide = { navController.navigate(Routes.GUIDE) },
                 onSettings = { navController.navigate(Routes.SETTINGS) },
+                onSeedDemo = {
+                    if (app.sosRepository.entries.value.none { it.source == "drill" }) {
+                        RegionAssets.loadScenarios(context).forEach {
+                            app.sosRepository.add(SosEntry(it, Triage.fallbackTriage(it), source = "drill"))
+                        }
+                    }
+                },
             )
         }
         composable(Routes.TRIAGE) {
@@ -132,5 +150,6 @@ private fun DishaNavHost() {
             val vm: SettingsViewModel = viewModel(factory = appFactory())
             SettingsScreen(viewModel = vm, onBack = { navController.popBackStack() })
         }
+    }
     }
 }

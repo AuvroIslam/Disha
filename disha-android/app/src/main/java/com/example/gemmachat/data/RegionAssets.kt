@@ -34,7 +34,8 @@ object RegionAssets {
     private fun features(ctx: Context, name: String) =
         JsonParser.parseString(read(ctx, name)).asJsonObject.getAsJsonArray("features")
 
-    fun loadShelters(ctx: Context): List<Shelter> = features(ctx, "chattogram/shelters.geojson").map {
+    fun loadShelters(ctx: Context, region: String = "chattogram"): List<Shelter> =
+        features(ctx, "$region/shelters.geojson").map {
         val ft = it.asJsonObject
         val p = ft.getAsJsonObject("properties")
         val c = ft.getAsJsonObject("geometry").getAsJsonArray("coordinates")
@@ -49,7 +50,8 @@ object RegionAssets {
         )
     }
 
-    fun loadFacilities(ctx: Context): List<Facility> = features(ctx, "chattogram/facilities.geojson").map {
+    fun loadFacilities(ctx: Context, region: String = "chattogram"): List<Facility> =
+        features(ctx, "$region/facilities.geojson").map {
         val ft = it.asJsonObject
         val p = ft.getAsJsonObject("properties")
         val c = ft.getAsJsonObject("geometry").getAsJsonArray("coordinates")
@@ -60,8 +62,8 @@ object RegionAssets {
     }
 
     /** Flood exterior rings, each as list of [lon, lat]. */
-    fun loadFloodPolys(ctx: Context): List<List<DoubleArray>> =
-        features(ctx, "chattogram/flood_zones.geojson").mapNotNull {
+    fun loadFloodPolys(ctx: Context, region: String = "chattogram"): List<List<DoubleArray>> =
+        features(ctx, "$region/flood_zones.geojson").mapNotNull {
             val geom = it.asJsonObject.getAsJsonObject("geometry")
             if (geom.get("type").asString != "Polygon") return@mapNotNull null
             geom.getAsJsonArray("coordinates")[0].asJsonArray.map { pt ->
@@ -83,8 +85,8 @@ object RegionAssets {
         }
     }
 
-    fun loadGraph(ctx: Context): Gis.PedGraph {
-        val g = JsonParser.parseString(read(ctx, "chattogram/ped_graph.json")).asJsonObject
+    fun loadGraph(ctx: Context, region: String = "chattogram"): Gis.PedGraph {
+        val g = JsonParser.parseString(read(ctx, "$region/ped_graph.json")).asJsonObject
         val nodes = HashMap<String, DoubleArray>()
         g.getAsJsonObject("nodes").entrySet().forEach { (k, v) ->
             val a = v.asJsonArray; nodes[k] = doubleArrayOf(a[0].asDouble, a[1].asDouble)

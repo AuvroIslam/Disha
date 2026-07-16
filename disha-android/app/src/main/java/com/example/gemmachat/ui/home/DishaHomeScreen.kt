@@ -27,6 +27,7 @@ import compose.icons.feathericons.BarChart2
 import compose.icons.feathericons.HelpCircle
 import compose.icons.feathericons.MapPin
 import compose.icons.feathericons.MessageCircle
+import compose.icons.feathericons.Play
 import compose.icons.feathericons.Radio
 import compose.icons.feathericons.Settings
 import compose.icons.feathericons.Shield
@@ -36,6 +37,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,6 +54,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.gemmachat.R
 import com.example.gemmachat.ui.components.HeroBanner
+import com.example.gemmachat.ui.demo.Actions
+import com.example.gemmachat.ui.demo.DemoDialog
+import com.example.gemmachat.ui.i18n.tr
 import com.example.gemmachat.ui.theme.AccentPurple
 import com.example.gemmachat.ui.theme.BgCard
 import com.example.gemmachat.ui.theme.TextPrimary
@@ -76,7 +84,19 @@ fun DishaHomeScreen(
     onChat: () -> Unit,
     onGuide: () -> Unit = {},
     onSettings: () -> Unit = {},
+    onSeedDemo: () -> Unit = {},
 ) {
+    var showDemo by remember { mutableStateOf(false) }
+    if (showDemo) {
+        DemoDialog(
+            onDismiss = { showDemo = false },
+            onSeed = onSeedDemo,
+            actions = Actions(
+                triage = onTriage, firstAid = onFirstAid, shelter = onGis,
+                mesh = onMesh, summary = onSummary,
+            ),
+        )
+    }
     Column(
         Modifier
             .fillMaxSize()
@@ -105,21 +125,44 @@ fun DishaHomeScreen(
         }
 
         Spacer(Modifier.height(18.dp))
-        Text("Assalamu Alaikum 👋", color = TextSecondary,
+        Text(tr("Assalamu Alaikum", "আসসালামু আলাইকুম"), color = TextSecondary,
             style = MaterialTheme.typography.bodyLarge)
         Spacer(Modifier.height(2.dp))
         Text("কিভাবে সাহায্য করতে পারি?", color = TextPrimary,
             fontWeight = FontWeight.Bold, fontSize = 28.sp, lineHeight = 34.sp)
         Spacer(Modifier.height(6.dp))
-        Text("Your offline AI assistant for flood emergencies",
+        Text(tr("Your offline AI assistant for flood emergencies",
+            "বন্যা জরুরি অবস্থার জন্য আপনার অফলাইন এআই সহায়ক"),
             color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+
+        // ---- Flood drill launcher ----
+        Spacer(Modifier.height(14.dp))
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                .background(AccentPurple.copy(alpha = 0.10f))
+                .clickable { showDemo = true }
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.size(36.dp).clip(CircleShape).background(AccentPurple),
+                contentAlignment = Alignment.Center) {
+                Icon(FeatherIcons.Play, null, tint = Color.White, modifier = Modifier.size(18.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(tr("Try a flood drill", "একটি বন্যা মহড়া করুন"), color = TextPrimary,
+                    fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                Text(tr("A guided walkthrough of every tool", "প্রতিটি টুলের ধাপে ধাপে পরিচিতি"),
+                    color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+            }
+        }
 
         // ---- Hero illustration ----
         Spacer(Modifier.height(16.dp))
         HeroBanner(
             R.drawable.hero_home,
-            title = "We're here to help",
-            subtitle = "Offline AI, right on your device",
+            title = tr("We're here to help", "আমরা পাশে আছি"),
+            subtitle = tr("Offline AI, right on your device", "অফলাইন এআই, আপনার ডিভাইসেই"),
         )
 
         // ---- Offline mode status card ----
@@ -138,14 +181,16 @@ fun DishaHomeScreen(
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("You are in ", color = TextPrimary,
+                        Text(tr("You are in ", "আপনি এখন "), color = TextPrimary,
                             style = MaterialTheme.typography.bodyMedium)
-                        Text("Offline Mode", color = AccentPurple, fontWeight = FontWeight.Bold,
+                        Text(tr("Offline Mode", "অফলাইন মোডে"), color = AccentPurple,
+                            fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.bodyMedium)
                         Text(" ●", color = Color(0xFF22A565),
                             style = MaterialTheme.typography.bodyMedium)
                     }
-                    Text("All systems ready. AI is running on this device.",
+                    Text(tr("All systems ready. AI is running on this device.",
+                        "সব প্রস্তুত। এআই এই ডিভাইসেই চলছে।"),
                         color = TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }
             }
@@ -154,24 +199,30 @@ fun DishaHomeScreen(
         // ---- Feature grid (2 x 3) ----
         Spacer(Modifier.height(18.dp))
         FeatureRow(
-            left = { FeatureCard(TileTriageBg, TileTriageFg, FeatherIcons.AlertTriangle, "Rescue Triage",
-                "Prioritize SOS and urgent cases", onTriage, it) },
-            right = { FeatureCard(TileAidBg, TileAidFg, FeatherIcons.Activity, "First Aid",
-                "Simple, trusted medical guidance", onFirstAid, it) },
+            left = { FeatureCard(TileTriageBg, TileTriageFg, FeatherIcons.AlertTriangle,
+                tr("Rescue Triage", "উদ্ধার ট্রায়াজ"),
+                tr("Prioritize SOS and urgent cases", "জরুরি এসওএস অগ্রাধিকার দিন"), onTriage, it) },
+            right = { FeatureCard(TileAidBg, TileAidFg, FeatherIcons.Activity,
+                tr("First Aid", "প্রাথমিক চিকিৎসা"),
+                tr("Simple, trusted medical guidance", "সহজ, নির্ভরযোগ্য চিকিৎসা পরামর্শ"), onFirstAid, it) },
         )
         Spacer(Modifier.height(14.dp))
         FeatureRow(
-            left = { FeatureCard(TileShelterBg, TileShelterFg, FeatherIcons.MapPin, "Safe Shelter & Route",
-                "Find safe places and best routes", onGis, it) },
-            right = { FeatureCard(TileSummaryBg, TileSummaryFg, FeatherIcons.BarChart2, "Coordinator Summary",
-                "Overview, reports and insights", onSummary, it) },
+            left = { FeatureCard(TileShelterBg, TileShelterFg, FeatherIcons.MapPin,
+                tr("Safe Shelter & Route", "নিরাপদ আশ্রয় ও পথ"),
+                tr("Find safe places and best routes", "নিরাপদ জায়গা ও সেরা পথ খুঁজুন"), onGis, it) },
+            right = { FeatureCard(TileSummaryBg, TileSummaryFg, FeatherIcons.BarChart2,
+                tr("Coordinator Summary", "সমন্বয়কারী সারাংশ"),
+                tr("Overview, reports and insights", "সারচিত্র, রিপোর্ট ও বিশ্লেষণ"), onSummary, it) },
         )
         Spacer(Modifier.height(14.dp))
         FeatureRow(
-            left = { FeatureCard(TileMeshBg, TileMeshFg, FeatherIcons.Radio, "Mesh SOS",
-                "Send & receive SOS offline via mesh", onMesh, it) },
-            right = { FeatureCard(TileChatBg, TileChatFg, FeatherIcons.MessageCircle, "AI Assistant",
-                "Ask anything about flood safety & first aid", onChat, it) },
+            left = { FeatureCard(TileMeshBg, TileMeshFg, FeatherIcons.Radio,
+                tr("Mesh SOS", "মেশ এসওএস"),
+                tr("Send & receive SOS offline via mesh", "মেশে অফলাইনে এসওএস পাঠান ও নিন"), onMesh, it) },
+            right = { FeatureCard(TileChatBg, TileChatFg, FeatherIcons.MessageCircle,
+                tr("AI Assistant", "এআই সহকারী"),
+                tr("Ask anything about flood safety & first aid", "বন্যা ও প্রাথমিক চিকিৎসা নিয়ে জিজ্ঞেস করুন"), onChat, it) },
         )
     }
 }

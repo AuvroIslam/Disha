@@ -38,12 +38,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.gemmachat.R
 import com.example.gemmachat.ui.components.HeroBanner
+import com.example.gemmachat.ui.i18n.LocalBangla
+import com.example.gemmachat.ui.i18n.tr
 
-private val EXAMPLES = listOf(
+private val EXAMPLES_EN = listOf(
     "Someone is bleeding heavily from a deep cut on the leg.",
     "We pulled someone from the floodwater and they are not breathing.",
     "A snake bit my brother's foot near the water.",
     "A child swallowed floodwater and is vomiting.",
+)
+
+private val EXAMPLES_BN = listOf(
+    "পায়ে গভীর কাটা থেকে প্রচুর রক্তক্ষরণ হচ্ছে।",
+    "বন্যার পানি থেকে তুলে আনা একজন শ্বাস নিচ্ছে না।",
+    "পানির কাছে আমার ভাইয়ের পায়ে সাপে কামড়েছে।",
+    "একটি শিশু বন্যার পানি গিলে বমি করছে।",
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,11 +60,12 @@ private val EXAMPLES = listOf(
 fun FirstAidScreen(viewModel: FirstAidViewModel, onBack: () -> Unit) {
     val ui by viewModel.ui.collectAsState()
     var text by remember { mutableStateOf("") }
+    val examples = if (LocalBangla.current) EXAMPLES_BN else EXAMPLES_EN
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Disha · First Aid") },
+                title = { Text(tr("Disha · First Aid", "দিশা · প্রাথমিক চিকিৎসা")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(FeatherIcons.ArrowLeft, contentDescription = "Back")
@@ -68,30 +78,35 @@ fun FirstAidScreen(viewModel: FirstAidViewModel, onBack: () -> Unit) {
             Modifier.padding(pad).padding(16.dp).fillMaxSize().verticalScroll(rememberScrollState()),
         ) {
             HeroBanner(R.drawable.hero_firstaid,
-                title = "First Aid", subtitle = "Trusted, cited guidance")
+                title = tr("First Aid", "প্রাথমিক চিকিৎসা"),
+                subtitle = tr("Trusted, cited guidance", "নির্ভরযোগ্য, উৎসসহ পরামর্শ"))
             Spacer(Modifier.height(12.dp))
             when {
                 ui.engineLoading -> Row(verticalAlignment = Alignment.CenterVertically) {
                     CircularProgressIndicator(Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.width(8.dp))
-                    Text("Loading on-device Gemma 4…", style = MaterialTheme.typography.bodySmall)
+                    Text(tr("Loading on-device Gemma 4…", "ডিভাইসে Gemma 4 লোড হচ্ছে…"),
+                        style = MaterialTheme.typography.bodySmall)
                 }
                 ui.engineReady -> Text(
-                    "● Grounded in offline first aid guidance (WHO, IFRC, Red Cross), answered by Gemma 4.",
+                    tr("● Grounded in offline first aid guidance (WHO, IFRC, Red Cross), answered by Gemma 4.",
+                        "● অফলাইন প্রাথমিক চিকিৎসা নির্দেশনার (WHO, IFRC, Red Cross) ভিত্তিতে, Gemma 4-এর উত্তর।"),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-                else -> Text("Model not loaded — showing the source passages directly.",
+                else -> Text(tr("Model not loaded — showing the source passages directly.",
+                    "মডেল লোড হয়নি — সরাসরি উৎস অনুচ্ছেদ দেখানো হচ্ছে।"),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
 
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(
                 value = text, onValueChange = { text = it },
-                label = { Text("Describe the injury / situation") },
+                label = { Text(tr("Describe the injury / situation", "আঘাত / পরিস্থিতি লিখুন")) },
                 modifier = Modifier.fillMaxWidth(), minLines = 2, maxLines = 4,
             )
             Spacer(Modifier.height(8.dp))
-            Text("Try an example:", style = MaterialTheme.typography.labelMedium)
-            EXAMPLES.forEach { ex ->
+            Text(tr("Common situations", "সাধারণ পরিস্থিতি"),
+                style = MaterialTheme.typography.labelMedium)
+            examples.forEach { ex ->
                 AssistChip(onClick = { text = ex },
                     label = { Text(ex.take(40) + "…", maxLines = 1) },
                     modifier = Modifier.padding(vertical = 2.dp))
@@ -102,9 +117,9 @@ fun FirstAidScreen(viewModel: FirstAidViewModel, onBack: () -> Unit) {
                 if (ui.busy) {
                     CircularProgressIndicator(Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.width(8.dp))
-                    Text("Thinking on-device…")
+                    Text(tr("Thinking on-device…", "ডিভাইসে ভাবছে…"))
                 } else {
-                    Text("Get First Aid Steps")
+                    Text(tr("Get First Aid Steps", "প্রাথমিক চিকিৎসার ধাপ দিন"))
                 }
             }
 
@@ -131,7 +146,7 @@ fun FirstAidScreen(viewModel: FirstAidViewModel, onBack: () -> Unit) {
                         Text(ans, style = MaterialTheme.typography.bodyMedium)
                         if (ui.citations.isNotEmpty()) {
                             Spacer(Modifier.height(10.dp))
-                            Text("Sources:", style = MaterialTheme.typography.labelMedium,
+                            Text(tr("Sources:", "উৎস:"), style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold)
                             ui.citations.forEach { c ->
                                 Text("[${c.n}] ${c.source} · ${c.pack}",

@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.ArrowLeft
+import compose.icons.feathericons.Radio
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -40,6 +41,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.gemmachat.R
 import com.example.gemmachat.ui.components.HeroBanner
+import com.example.gemmachat.ui.i18n.LocalBangla
+import com.example.gemmachat.ui.i18n.tr
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 
@@ -68,7 +71,7 @@ fun MeshScreen(viewModel: MeshViewModel, onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Disha · Mesh SOS") },
+                title = { Text(tr("Disha · Mesh SOS", "দিশা · মেশ এসওএস")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(FeatherIcons.ArrowLeft, contentDescription = "Back")
@@ -79,12 +82,14 @@ fun MeshScreen(viewModel: MeshViewModel, onBack: () -> Unit) {
     ) { pad ->
         Column(Modifier.padding(pad).padding(16.dp).fillMaxSize()) {
             if (!permState.allPermissionsGranted) {
-                Text("Offline mesh needs Bluetooth, Nearby-Wi-Fi and location permissions to " +
+                Text(tr("Offline mesh needs Bluetooth, Nearby-Wi-Fi and location permissions to " +
                     "find nearby phones (no internet is used).",
+                    "অফলাইন মেশে কাছের ফোন খুঁজতে ব্লুটুথ, নিয়ারবাই-ওয়াইফাই ও লোকেশন অনুমতি লাগে " +
+                        "(কোনো ইন্টারনেট ব্যবহার হয় না)।"),
                     style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(12.dp))
                 Button(onClick = { permState.launchMultiplePermissionRequest() }) {
-                    Text("Grant mesh permissions")
+                    Text(tr("Grant mesh permissions", "মেশ অনুমতি দিন"))
                 }
                 return@Column
             }
@@ -93,35 +98,44 @@ fun MeshScreen(viewModel: MeshViewModel, onBack: () -> Unit) {
             DisposableEffect(Unit) { onDispose { viewModel.stop() } }
 
             HeroBanner(R.drawable.hero_mesh,
-                title = "Mesh SOS", subtitle = "Send SOS, no internet")
+                title = tr("Mesh SOS", "মেশ এসওএস"),
+                subtitle = tr("Send SOS, no internet", "ইন্টারনেট ছাড়াই এসওএস পাঠান"))
             Spacer(Modifier.height(12.dp))
 
             Text("● ${ui.status}", style = MaterialTheme.typography.bodyMedium,
                 color = if (ui.peers > 0) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("This device: ${viewModel.localName}  ·  peers: ${ui.peers}",
+            Text("${tr("This device", "এই ডিভাইস")}: ${viewModel.localName}  ·  " +
+                "${tr("peers", "সংযুক্ত")}: ${ui.peers}",
                 style = MaterialTheme.typography.bodySmall)
 
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(value = text, onValueChange = { text = it },
-                label = { Text("SOS message") }, modifier = Modifier.fillMaxWidth(), maxLines = 3)
+                label = { Text(tr("SOS message", "এসওএস বার্তা")) },
+                modifier = Modifier.fillMaxWidth(), maxLines = 3)
             Spacer(Modifier.height(6.dp))
+            val rooftopSos = tr("Trapped on rooftop, water rising, need boat rescue.",
+                "ছাদে আটকা, পানি বাড়ছে, নৌকায় উদ্ধার দরকার।")
+            val medicalSos = tr("Elderly man, heavy bleeding, need medic urgently.",
+                "বয়স্ক ব্যক্তি, প্রচুর রক্তক্ষরণ, দ্রুত চিকিৎসক দরকার।")
             Row {
-                AssistChip(onClick = { text = "Trapped on rooftop, water rising, need boat rescue." },
-                    label = { Text("rooftop SOS") })
+                AssistChip(onClick = { text = rooftopSos },
+                    label = { Text(tr("rooftop SOS", "ছাদ এসওএস")) })
                 Spacer(Modifier.width(8.dp))
-                AssistChip(onClick = { text = "Elderly man, heavy bleeding, need medic urgently." },
-                    label = { Text("medical SOS") })
+                AssistChip(onClick = { text = medicalSos },
+                    label = { Text(tr("medical SOS", "চিকিৎসা এসওএস")) })
             }
             Spacer(Modifier.height(8.dp))
             Button(onClick = { viewModel.send(text); text = "" },
                 enabled = text.isNotBlank()) {
-                Text("📡 Broadcast SOS")
+                Icon(FeatherIcons.Radio, null, modifier = Modifier.width(18.dp).height(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(tr("Broadcast SOS", "এসওএস সম্প্রচার"))
             }
 
             Spacer(Modifier.height(12.dp))
-            Text("Messages (${ui.messages.size})", style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold)
+            Text("${tr("Messages", "বার্তা")} (${ui.messages.size})",
+                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp))
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(ui.messages.reversed()) { m -> MeshRow(m) }

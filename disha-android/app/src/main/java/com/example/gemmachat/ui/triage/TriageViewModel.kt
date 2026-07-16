@@ -9,6 +9,7 @@ import com.example.gemmachat.core.Prompts
 import com.example.gemmachat.core.SosReport
 import com.example.gemmachat.core.Triage
 import com.example.gemmachat.core.TriageResult
+import com.example.gemmachat.data.SosEntry
 import com.example.gemmachat.data.download.HfDownloadRepository
 import com.example.gemmachat.inference.GemmaLlmEngine
 import kotlinx.coroutines.Dispatchers
@@ -75,7 +76,12 @@ class TriageViewModel(application: Application) : AndroidViewModel(application) 
             _ui.value = _ui.value.copy(busy = true, error = null)
             try {
                 val ready = app.engineHolder.isReady()
-                val sos = SosReport(text = t.ifEmpty { "(photo of the scene)" }, imagePath = img)
+                app.engineHolder.respondInBangla = app.prefs.isBangla
+                val loc = app.locationProvider.current()
+                val sos = SosReport(
+                    text = t.ifEmpty { "(photo of the scene)" }, imagePath = img,
+                    lat = loc?.first, lon = loc?.second, reporterRole = "volunteer",
+                )
                 val result = withContext(Dispatchers.Default) {
                     if (ready && img != null) {
                         val raw = app.engineHolder.generateWith(
@@ -86,6 +92,7 @@ class TriageViewModel(application: Application) : AndroidViewModel(application) 
                         Triage.triageSos(sos, if (ready) engine else null)
                     }
                 }
+                app.sosRepository.add(SosEntry(sos, result, source = "triage"))
                 val label = if (img != null) "📷 ${sos.text}" else sos.text
                 val queue = (_ui.value.queue + TriagedItem(label, result))
                     .sortedWith(compareBy({ rank[it.result.priority] }, { -it.result.urgencyScore }))

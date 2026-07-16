@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.gemmachat.ui.i18n.tr
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -42,7 +43,7 @@ fun SummaryScreen(viewModel: SummaryViewModel, onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Disha · Coordinator Summary") },
+                title = { Text(tr("Disha · Coordinator Summary", "দিশা · সমন্বয়কারী সারাংশ")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(FeatherIcons.ArrowLeft, contentDescription = "Back")
@@ -55,32 +56,55 @@ fun SummaryScreen(viewModel: SummaryViewModel, onBack: () -> Unit) {
             Modifier.padding(pad).padding(16.dp).fillMaxSize().verticalScroll(rememberScrollState()),
         ) {
             Text(
-                "Aggregates incoming field reports. Counts are computed on-device (never hallucinated); " +
-                    "Gemma 4 writes the briefing.",
+                tr("Aggregates the field reports on this device. Counts are computed on-device " +
+                    "(never hallucinated); Gemma 4 writes the briefing.",
+                    "এই ডিভাইসের সব রিপোর্ট একত্র করে। সংখ্যা ডিভাইসেই গণনা করা হয় " +
+                        "(কখনো বানানো নয়); Gemma 4 ব্রিফিং লেখে।"),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary)
 
+            Spacer(Modifier.height(8.dp))
+            Text("${ui.reportCount} " + tr("report(s) collected so far.", "টি রিপোর্ট এ পর্যন্ত সংগৃহীত।"),
+                style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+
             Spacer(Modifier.height(12.dp))
-            Button(onClick = { viewModel.generate() }, enabled = !ui.busy) {
+            Button(onClick = { viewModel.generate() }, enabled = !ui.busy && ui.reportCount > 0) {
                 if (ui.busy) {
                     CircularProgressIndicator(Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.width(8.dp))
-                    Text("Writing briefing…")
+                    Text(tr("Writing briefing…", "ব্রিফিং লেখা হচ্ছে…"))
                 } else {
-                    Text("Generate coordinator briefing")
+                    Text(tr("Generate coordinator briefing", "সমন্বয়কারী ব্রিফিং তৈরি করুন"))
+                }
+            }
+
+            if (ui.reportCount == 0 && !ui.busy) {
+                Spacer(Modifier.height(12.dp))
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(14.dp)) {
+                        Text(tr("No field reports yet", "এখনো কোনো রিপোর্ট নেই"),
+                            fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            tr("Cases you triage in Rescue Triage, and SOS you send or receive over Mesh " +
+                                "SOS, collect here. Then I'll write the coordinator briefing from them.",
+                                "উদ্ধার ট্রায়াজে করা কেস এবং মেশ এসওএস-এ পাঠানো বা পাওয়া এসওএস এখানে জমা হয়। " +
+                                    "তারপর সেগুলো থেকে আমি সমন্বয়কারী ব্রিফিং লিখব।"),
+                            style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
             }
 
             ui.error?.let {
                 Spacer(Modifier.height(8.dp))
-                Text("Error: $it", color = MaterialTheme.colorScheme.error,
+                Text("${tr("Error", "সমস্যা")}: $it", color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall)
             }
 
             ui.stats?.let { st ->
                 Spacer(Modifier.height(12.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AssistChip(onClick = {}, label = { Text("Total ${st.totalSos}") })
+                    AssistChip(onClick = {}, label = { Text("${tr("Total", "মোট")} ${st.totalSos}") })
                     AssistChip(onClick = {}, label = { Text("🔴 ${st.critical}") })
                     AssistChip(onClick = {}, label = { Text("🟠 ${st.high}") })
                     AssistChip(onClick = {}, label = { Text("🟡 ${st.moderate}") })

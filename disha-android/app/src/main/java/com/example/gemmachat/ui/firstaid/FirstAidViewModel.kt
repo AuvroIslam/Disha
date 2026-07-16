@@ -50,6 +50,7 @@ class FirstAidViewModel(application: Application) : AndroidViewModel(application
             _ui.value = _ui.value.copy(busy = true, error = null, answer = null, citations = emptyList())
             try {
                 val useGemma = app.engineHolder.isReady()
+                app.engineHolder.respondInBangla = app.prefs.isBangla
                 val ans = withContext(Dispatchers.Default) {
                     Rag.firstAidAnswer(q, retriever, if (useGemma) engine else null, k = 2)
                 }
