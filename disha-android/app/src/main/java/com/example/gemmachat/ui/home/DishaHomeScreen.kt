@@ -20,16 +20,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Chat
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.MedicalServices
-import androidx.compose.material.icons.filled.HelpOutline
-import androidx.compose.material.icons.filled.Place
-import androidx.compose.material.icons.filled.Sensors
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.Warning
+import compose.icons.FeatherIcons
+import compose.icons.feathericons.Activity
+import compose.icons.feathericons.AlertTriangle
+import compose.icons.feathericons.BarChart2
+import compose.icons.feathericons.HelpCircle
+import compose.icons.feathericons.MapPin
+import compose.icons.feathericons.MessageCircle
+import compose.icons.feathericons.Radio
+import compose.icons.feathericons.Settings
+import compose.icons.feathericons.Shield
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -99,9 +99,9 @@ fun DishaHomeScreen(
                     modifier = Modifier.offset(y = (-5).dp))
             }
             Spacer(Modifier.weight(1f))
-            CircleIconButton(Icons.Filled.HelpOutline, onClick = onGuide)
+            CircleIconButton(FeatherIcons.HelpCircle, onClick = onGuide)
             Spacer(Modifier.width(10.dp))
-            CircleIconButton(Icons.Filled.Settings, onClick = onSettings)
+            CircleIconButton(FeatherIcons.Settings, onClick = onSettings)
         }
 
         Spacer(Modifier.height(18.dp))
@@ -133,7 +133,7 @@ fun DishaHomeScreen(
             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(44.dp).clip(CircleShape).background(AccentPurple.copy(alpha = 0.14f)),
                     contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.Shield, null, tint = AccentPurple, modifier = Modifier.size(24.dp))
+                    Icon(FeatherIcons.Shield, null, tint = AccentPurple, modifier = Modifier.size(24.dp))
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
@@ -154,23 +154,23 @@ fun DishaHomeScreen(
         // ---- Feature grid (2 x 3) ----
         Spacer(Modifier.height(18.dp))
         FeatureRow(
-            left = { FeatureCard(TileTriageBg, TileTriageFg, Icons.Filled.Warning, "Rescue Triage",
+            left = { FeatureCard(TileTriageBg, TileTriageFg, FeatherIcons.AlertTriangle, "Rescue Triage",
                 "Prioritize SOS and urgent cases", onTriage, it) },
-            right = { FeatureCard(TileAidBg, TileAidFg, Icons.Filled.MedicalServices, "First Aid",
+            right = { FeatureCard(TileAidBg, TileAidFg, FeatherIcons.Activity, "First Aid",
                 "Simple, trusted medical guidance", onFirstAid, it) },
         )
         Spacer(Modifier.height(14.dp))
         FeatureRow(
-            left = { FeatureCard(TileShelterBg, TileShelterFg, Icons.Filled.Place, "Safe Shelter & Route",
+            left = { FeatureCard(TileShelterBg, TileShelterFg, FeatherIcons.MapPin, "Safe Shelter & Route",
                 "Find safe places and best routes", onGis, it) },
-            right = { FeatureCard(TileSummaryBg, TileSummaryFg, Icons.Filled.BarChart, "Coordinator Summary",
+            right = { FeatureCard(TileSummaryBg, TileSummaryFg, FeatherIcons.BarChart2, "Coordinator Summary",
                 "Overview, reports and insights", onSummary, it) },
         )
         Spacer(Modifier.height(14.dp))
         FeatureRow(
-            left = { FeatureCard(TileMeshBg, TileMeshFg, Icons.Filled.Sensors, "Mesh SOS",
+            left = { FeatureCard(TileMeshBg, TileMeshFg, FeatherIcons.Radio, "Mesh SOS",
                 "Send & receive SOS offline via mesh", onMesh, it) },
-            right = { FeatureCard(TileChatBg, TileChatFg, Icons.AutoMirrored.Filled.Chat, "AI Assistant",
+            right = { FeatureCard(TileChatBg, TileChatFg, FeatherIcons.MessageCircle, "AI Assistant",
                 "Ask anything about flood safety & first aid", onChat, it) },
         )
     }

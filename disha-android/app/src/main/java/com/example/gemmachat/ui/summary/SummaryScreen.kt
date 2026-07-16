@@ -13,8 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import compose.icons.FeatherIcons
+import compose.icons.feathericons.ArrowLeft
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -45,7 +45,7 @@ fun SummaryScreen(viewModel: SummaryViewModel, onBack: () -> Unit) {
                 title = { Text("Disha · Coordinator Summary") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(FeatherIcons.ArrowLeft, contentDescription = "Back")
                     }
                 },
             )

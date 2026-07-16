@@ -18,8 +18,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import compose.icons.FeatherIcons
+import compose.icons.feathericons.Activity
+import compose.icons.feathericons.AlertTriangle
+import compose.icons.feathericons.ArrowLeft
+import compose.icons.feathericons.BarChart2
+import compose.icons.feathericons.MapPin
+import compose.icons.feathericons.MessageCircle
+import compose.icons.feathericons.Radio
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -44,26 +51,34 @@ import com.example.gemmachat.ui.theme.BgCard
 import com.example.gemmachat.ui.theme.TextPrimary
 import com.example.gemmachat.ui.theme.TextSecondary
 import com.example.gemmachat.ui.theme.TileAidBg
+import com.example.gemmachat.ui.theme.TileAidFg
 import com.example.gemmachat.ui.theme.TileChatBg
+import com.example.gemmachat.ui.theme.TileChatFg
 import com.example.gemmachat.ui.theme.TileMeshBg
+import com.example.gemmachat.ui.theme.TileMeshFg
 import com.example.gemmachat.ui.theme.TileShelterBg
+import com.example.gemmachat.ui.theme.TileShelterFg
 import com.example.gemmachat.ui.theme.TileSummaryBg
+import com.example.gemmachat.ui.theme.TileSummaryFg
 import com.example.gemmachat.ui.theme.TileTriageBg
+import com.example.gemmachat.ui.theme.TileTriageFg
 
-private data class Feature(val emoji: String, val bg: Color, val title: String, val desc: String)
+private data class Feature(
+    val icon: ImageVector, val bg: Color, val fg: Color, val title: String, val desc: String,
+)
 
 private val FEATURES = listOf(
-    Feature("🚑", TileTriageBg, "Rescue Triage",
+    Feature(FeatherIcons.AlertTriangle, TileTriageBg, TileTriageFg, "Rescue Triage",
         "Type or photograph an SOS and I rank its urgency, so the worst cases get help first."),
-    Feature("🩹", TileAidBg, "First Aid",
+    Feature(FeatherIcons.Activity, TileAidBg, TileAidFg, "First Aid",
         "Describe an injury and I give clear, cited first aid in Bangla and English."),
-    Feature("🗺️", TileShelterBg, "Safe Shelter",
+    Feature(FeatherIcons.MapPin, TileShelterBg, TileShelterFg, "Safe Shelter",
         "I find the nearest safe shelter on high ground, and a way there that avoids flooding."),
-    Feature("📋", TileSummaryBg, "Coordinator Summary",
+    Feature(FeatherIcons.BarChart2, TileSummaryBg, TileSummaryFg, "Coordinator Summary",
         "I turn all the field reports into one clear briefing with counts, top cases and shortages."),
-    Feature("📡", TileMeshBg, "Mesh SOS",
+    Feature(FeatherIcons.Radio, TileMeshBg, TileMeshFg, "Mesh SOS",
         "Send an SOS from phone to phone with no internet. Nearby phones pass it onward."),
-    Feature("💬", TileChatBg, "AI Assistant",
+    Feature(FeatherIcons.MessageCircle, TileChatBg, TileChatFg, "AI Assistant",
         "Ask me anything about flood safety or first aid, answered right on your phone."),
 )
 
@@ -76,7 +91,7 @@ fun GuideScreen(onBack: () -> Unit) {
                 title = { Text("How to use Disha") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(FeatherIcons.ArrowLeft, contentDescription = "Back")
                     }
                 },
             )
@@ -154,7 +169,7 @@ private fun FeatureExplainer(f: Feature) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(46.dp).clip(CircleShape).background(f.bg),
                 contentAlignment = Alignment.Center) {
-                Text(f.emoji, style = MaterialTheme.typography.titleLarge)
+                Icon(f.icon, null, tint = f.fg, modifier = Modifier.size(24.dp))
             }
             Spacer(Modifier.width(14.dp))
             Column {

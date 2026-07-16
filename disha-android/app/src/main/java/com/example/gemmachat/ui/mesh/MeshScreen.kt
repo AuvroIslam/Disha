@@ -13,8 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import compose.icons.FeatherIcons
+import compose.icons.feathericons.ArrowLeft
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -71,7 +71,7 @@ fun MeshScreen(viewModel: MeshViewModel, onBack: () -> Unit) {
                 title = { Text("Disha · Mesh SOS") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(FeatherIcons.ArrowLeft, contentDescription = "Back")
                     }
                 },
             )
