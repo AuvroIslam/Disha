@@ -96,6 +96,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.accompanist.permissions)
     implementation(libs.coil.compose)
+    implementation(libs.play.services.nearby)
 
     debugImplementation(libs.androidx.ui.tooling)
     testImplementation(libs.junit)

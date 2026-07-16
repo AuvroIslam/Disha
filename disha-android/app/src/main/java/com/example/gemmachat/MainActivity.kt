@@ -19,6 +19,8 @@ import com.example.gemmachat.ui.firstaid.FirstAidViewModel
 import com.example.gemmachat.ui.gis.GisScreen
 import com.example.gemmachat.ui.gis.GisViewModel
 import com.example.gemmachat.ui.home.DishaHomeScreen
+import com.example.gemmachat.ui.mesh.MeshScreen
+import com.example.gemmachat.ui.mesh.MeshViewModel
 import com.example.gemmachat.ui.onboarding.OnboardingScreen
 import com.example.gemmachat.ui.onboarding.OnboardingViewModel
 import com.example.gemmachat.ui.settings.SettingsScreen
@@ -36,6 +38,7 @@ private object Routes {
     const val FIRSTAID = "firstaid"
     const val GIS = "gis"
     const val SUMMARY = "summary"
+    const val MESH = "mesh"
     const val CHAT = "chat"
     const val SETTINGS = "settings"
 }
@@ -68,15 +71,13 @@ private fun DishaNavHost() {
     NavHost(navController = navController, startDestination = start) {
         composable(Routes.ONBOARDING) {
             val vm: OnboardingViewModel = viewModel(factory = appFactory())
-            OnboardingScreen(
-                viewModel = vm,
-                onFinished = {
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.ONBOARDING) { inclusive = true }
-                        launchSingleTop = true
-                    }
-                },
-            )
+            val toHome: () -> Unit = {
+                navController.navigate(Routes.HOME) {
+                    popUpTo(Routes.ONBOARDING) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
+            OnboardingScreen(viewModel = vm, onFinished = toHome, onSkip = toHome)
         }
         composable(Routes.HOME) {
             DishaHomeScreen(
@@ -84,6 +85,7 @@ private fun DishaNavHost() {
                 onFirstAid = { navController.navigate(Routes.FIRSTAID) },
                 onGis = { navController.navigate(Routes.GIS) },
                 onSummary = { navController.navigate(Routes.SUMMARY) },
+                onMesh = { navController.navigate(Routes.MESH) },
                 onChat = { navController.navigate(Routes.CHAT) },
             )
         }
@@ -102,6 +104,10 @@ private fun DishaNavHost() {
         composable(Routes.SUMMARY) {
             val vm: SummaryViewModel = viewModel(factory = appFactory())
             SummaryScreen(viewModel = vm, onBack = { navController.popBackStack() })
+        }
+        composable(Routes.MESH) {
+            val vm: MeshViewModel = viewModel(factory = appFactory())
+            MeshScreen(viewModel = vm, onBack = { navController.popBackStack() })
         }
         composable(Routes.CHAT) {
             val vm: ChatViewModel = viewModel(factory = appFactory())

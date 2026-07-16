@@ -67,6 +67,7 @@ import com.example.gemmachat.ui.theme.TextSecondary
 fun OnboardingScreen(
     viewModel: OnboardingViewModel,
     onFinished: () -> Unit,
+    onSkip: () -> Unit,
 ) {
     val ui by viewModel.ui.collectAsState()
     var consentAccepted by rememberSaveable { mutableStateOf(false) }
@@ -161,7 +162,8 @@ fun OnboardingScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 32.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 32.dp, vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
@@ -356,6 +358,12 @@ fun OnboardingScreen(
                 enabled = !ui.downloading,
             ) {
                 Text(stringResource(R.string.review_terms_credits_privacy))
+            }
+            TextButton(
+                onClick = onSkip,
+                enabled = !ui.downloading,
+            ) {
+                Text("Continue without the model (mesh & maps)")
             }
         }
     }

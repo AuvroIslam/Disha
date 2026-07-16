@@ -27,6 +27,7 @@ fun DishaHomeScreen(
     onFirstAid: () -> Unit,
     onGis: () -> Unit,
     onSummary: () -> Unit,
+    onMesh: () -> Unit,
     onChat: () -> Unit,
 ) {
     Column(
@@ -68,6 +69,13 @@ fun DishaHomeScreen(
             title = "Coordinator Summary",
             subtitle = "Gemma briefing over triaged field reports",
             onClick = onSummary,
+        )
+        Spacer(Modifier.height(12.dp))
+        HomeTile(
+            emoji = "📡",
+            title = "Mesh SOS",
+            subtitle = "Send SOS phone-to-phone, no internet (signed + relayed)",
+            onClick = onMesh,
         )
         Spacer(Modifier.height(12.dp))
         HomeTile(
