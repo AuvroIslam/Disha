@@ -33,7 +33,10 @@ venv/
 
 # ---- Logs, screenshots, scratch (debugging artifacts) ----
 *.log
+/*.png
 pixel_*.png
+sam_*.png
+reg_*.png
 scratch_*.png
 emulator.log
 
