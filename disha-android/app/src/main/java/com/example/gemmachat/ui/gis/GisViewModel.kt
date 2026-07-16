@@ -7,11 +7,15 @@ import com.example.gemmachat.GemmaChatApplication
 import com.example.gemmachat.core.Gis
 import com.example.gemmachat.core.Shelter
 import com.example.gemmachat.data.BdGeo
+import com.example.gemmachat.data.PublicShelterHit
+import com.example.gemmachat.data.PublicShelters
 import com.example.gemmachat.data.RegionAssets
 import com.example.gemmachat.data.Regions
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class GisUiState(
     val userLat: Double = 0.0,
@@ -25,6 +29,7 @@ data class GisUiState(
     val floodPolys: List<List<DoubleArray>> = emptyList(),
     val graph: Gis.PedGraph? = null,
     val ranked: List<Gis.RankedShelter> = emptyList(),
+    val nearbyPublic: List<PublicShelterHit> = emptyList(),
     val route: Gis.Route? = null,
     val naiveCrossesFlood: Boolean = false,
     val elderly: Boolean = false,
@@ -78,17 +83,18 @@ class GisViewModel(application: Application) : AndroidViewModel(application) {
                     userLat = lat, userLon = lon, usingGps = usedGps, locating = false,
                     districtEn = district.name, districtBn = district.bn, detailed = true,
                     shelters = shelters, floodPolys = flood, graph = graph,
-                    ranked = ranked, route = route, naiveCrossesFlood = naive, computed = true,
+                    ranked = ranked, nearbyPublic = emptyList(),
+                    route = route, naiveCrossesFlood = naive, computed = true,
                 )
             } else {
-                // No detailed map here yet — nationwide fallback on the union of known shelters.
-                val shelters = BdGeo.allShelters(ctx)
-                val ranked = Gis.findNearestShelter(lat, lon, shelters, profile)
+                // No detailed map here — nationwide fallback on the real schools/colleges layer.
+                val hits = withContext(Dispatchers.Default) { PublicShelters.nearest(ctx, lat, lon, 6) }
                 _ui.value = _ui.value.copy(
                     userLat = lat, userLon = lon, usingGps = usedGps, locating = false,
                     districtEn = district.name, districtBn = district.bn, detailed = false,
-                    shelters = shelters, floodPolys = emptyList(), graph = null,
-                    ranked = ranked, route = null, naiveCrossesFlood = false, computed = true,
+                    shelters = emptyList(), floodPolys = emptyList(), graph = null,
+                    ranked = emptyList(), nearbyPublic = hits,
+                    route = null, naiveCrossesFlood = false, computed = true,
                 )
             }
         }

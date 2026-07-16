@@ -39,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.gemmachat.R
 import com.example.gemmachat.core.Gis
+import com.example.gemmachat.data.PublicShelterHit
 import com.example.gemmachat.ui.components.HeroBanner
 import com.example.gemmachat.ui.i18n.LocalBangla
 import com.example.gemmachat.ui.i18n.tr
@@ -61,13 +62,12 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
     }
 
     // bounding box over the current geodata (for the mini-map projection)
-    val bbox = remember(ui.userLat, ui.userLon, ui.shelters, ui.detailed, ui.ranked) {
+    val bbox = remember(ui.userLat, ui.userLon, ui.shelters, ui.detailed, ui.nearbyPublic) {
         val lats = ArrayList<Double>(); val lons = ArrayList<Double>()
         ui.graph?.nodes?.values?.forEach { lats.add(it[0]); lons.add(it[1]) }
         ui.floodPolys.forEach { r -> r.forEach { lats.add(it[1]); lons.add(it[0]) } }
-        // In the nationwide view only the nearest few shelters matter for framing.
         val pts = if (ui.detailed) ui.shelters.map { it.lat to it.lon }
-        else ui.ranked.map { it.lat to it.lon }
+        else ui.nearbyPublic.map { it.shelter.lat to it.shelter.lon }
         pts.forEach { lats.add(it.first); lons.add(it.second) }
         lats.add(ui.userLat); lons.add(ui.userLon)
         if (lats.size < 2) { lats.add(ui.userLat + 0.02); lons.add(ui.userLon + 0.02) }
@@ -176,16 +176,17 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
                                 Offset(ox(poly[i][1]), oy(poly[i][0])),
                                 Offset(ox(poly[i + 1][1]), oy(poly[i + 1][0])), strokeWidth = 8f)
                         }
-                    } else ui.ranked.firstOrNull()?.let { top ->
+                    } else ui.nearbyPublic.firstOrNull()?.let { top ->
                         drawLine(ROUTE,
                             Offset(ox(ui.userLon), oy(ui.userLat)),
-                            Offset(ox(top.lon), oy(top.lat)), strokeWidth = 5f, pathEffect = dash)
+                            Offset(ox(top.shelter.lon), oy(top.shelter.lat)),
+                            strokeWidth = 5f, pathEffect = dash)
                     }
                     // shelters (green) + user (black)
-                    val shownShelters = if (ui.detailed) ui.shelters
-                    else ui.shelters.filter { s -> ui.ranked.any { it.lat == s.lat && it.lon == s.lon } }
-                    shownShelters.forEach { s ->
+                    if (ui.detailed) ui.shelters.forEach { s ->
                         drawCircle(SHELTER, radius = 12f, center = Offset(ox(s.lon), oy(s.lat)))
+                    } else ui.nearbyPublic.forEach { h ->
+                        drawCircle(SHELTER, radius = 10f, center = Offset(ox(h.shelter.lon), oy(h.shelter.lat)))
                     }
                     drawCircle(Color.Black, radius = 12f,
                         center = Offset(ox(ui.userLon), oy(ui.userLat)))
@@ -246,13 +247,20 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
                 }
             }
 
-            if (ui.ranked.isNotEmpty()) {
+            if (ui.detailed && ui.ranked.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
-                Text(
-                    if (ui.detailed) tr("Ranked shelters", "সাজানো আশ্রয়কেন্দ্র")
-                    else tr("Nearest known shelters", "নিকটতম পরিচিত আশ্রয়"),
+                Text(tr("Ranked shelters", "সাজানো আশ্রয়কেন্দ্র"),
                     style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 ui.ranked.forEach { s -> ShelterRow(s) }
+            } else if (!ui.detailed && ui.nearbyPublic.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                Text(tr("Nearest shelters (schools & colleges)", "নিকটতম আশ্রয় (স্কুল ও কলেজ)"),
+                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(tr("Public schools and colleges — commonly used as flood shelters.",
+                    "সরকারি স্কুল ও কলেজ — সাধারণত বন্যা আশ্রয় হিসেবে ব্যবহৃত হয়।"),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                ui.nearbyPublic.forEach { h -> PublicShelterRow(h) }
             } else if (!ui.computed) {
                 Spacer(Modifier.height(12.dp))
                 Text(tr("Tap “Find nearest safe shelter”. It uses your GPS and works anywhere in Bangladesh.",
@@ -277,6 +285,24 @@ private fun ShelterRow(s: Gis.RankedShelter) {
             }
             Text("${fmtDist(s.distM)} · ${s.capacityLeft} ${tr("spaces free", "জায়গা খালি")} · " +
                 "${tr("score", "স্কোর")} ${"%.3f".format(s.score)}",
+                style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+private fun PublicShelterRow(h: PublicShelterHit) {
+    val typeLabel = when (h.shelter.type) {
+        "c" -> tr("College", "কলেজ")
+        "u" -> tr("University", "বিশ্ববিদ্যালয়")
+        else -> tr("School", "স্কুল")
+    }
+    val place = listOf(h.shelter.upazila, h.shelter.district)
+        .filter { it.isNotBlank() }.joinToString(", ")
+    Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Column(Modifier.padding(12.dp)) {
+            Text(h.shelter.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+            Text("$typeLabel · ${fmtDist(h.distM)}" + if (place.isNotBlank()) " · $place" else "",
                 style = MaterialTheme.typography.bodySmall)
         }
     }
