@@ -1,7 +1,7 @@
 {
   "type": "FeatureCollection",
   "name": "sunamganj_flood_zones",
-  "properties": { "as_of": "2026-07-14", "source": "event overlay (haor inundation, per-event)" },
+  "properties": { "as_of": "2026-07-14", "source": "illustrative scenario (haor), not live flood data" },
   "features": [
     {
       "type": "Feature",

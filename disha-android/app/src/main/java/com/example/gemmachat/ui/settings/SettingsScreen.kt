@@ -263,6 +263,13 @@ fun SettingsScreen(
                         "রিপোর্ট, ছবি ও চ্যাট কখনো এই ফোন ছেড়ে যায় না।",
                     ),
                 )
+                Divider()
+                LinkRow(
+                    FeatherIcons.MapPin,
+                    tr("Map & shelter data", "মানচিত্র ও আশ্রয় তথ্য"),
+                    tr("Roads & shelters © OpenStreetMap contributors (ODbL)",
+                        "রাস্তা ও আশ্রয় © OpenStreetMap contributors (ODbL)"),
+                ) { uriHandler.openUri("https://www.openstreetmap.org/copyright") }
             }
         }
     }

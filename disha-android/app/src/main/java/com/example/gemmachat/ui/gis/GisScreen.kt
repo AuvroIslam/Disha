@@ -200,6 +200,14 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
                     "● আপনি   ● নিকটতম আশ্রয়   ┈ দিক"),
                 style = MaterialTheme.typography.labelSmall,
                 modifier = Modifier.padding(top = 4.dp))
+            if (ui.detailed) {
+                Text(
+                    tr("Roads: © OpenStreetMap contributors. The flood zone is an illustrative scenario, not live data.",
+                        "রাস্তা: © OpenStreetMap contributors। বন্যা এলাকা একটি উদাহরণমূলক দৃশ্য, লাইভ তথ্য নয়।"),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp))
+            }
 
             // ---- results ---- //
             // Detailed mode: flood-avoiding walking route card.

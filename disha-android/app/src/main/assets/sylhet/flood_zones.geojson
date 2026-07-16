@@ -1,7 +1,7 @@
 {
   "type": "FeatureCollection",
   "name": "sylhet_flood_zones",
-  "properties": { "as_of": "2026-07-14", "source": "event overlay (Surma river, per-event)" },
+  "properties": { "as_of": "2026-07-14", "source": "illustrative scenario (Surma river), not live flood data" },
   "features": [
     {
       "type": "Feature",
