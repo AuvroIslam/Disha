@@ -5,6 +5,7 @@ import com.example.gemmachat.core.Facility
 import com.example.gemmachat.core.Gis
 import com.example.gemmachat.core.KbChunk
 import com.example.gemmachat.core.Shelter
+import com.example.gemmachat.core.SosReport
 import com.google.gson.JsonParser
 
 /** Loads the bundled offline region pack + first-aid knowledge from app assets. */
@@ -67,6 +68,20 @@ object RegionAssets {
                 val a = pt.asJsonArray; doubleArrayOf(a[0].asDouble, a[1].asDouble)
             }
         }
+
+    fun loadScenarios(ctx: Context): List<SosReport> {
+        val arr = JsonParser.parseString(read(ctx, "chattogram_sos.json")).asJsonArray
+        return arr.map { el ->
+            val o = el.asJsonObject
+            SosReport(
+                text = o.get("text").asString,
+                lat = o.get("lat")?.asDouble, lon = o.get("lon")?.asDouble,
+                reporterRole = o.get("reporter_role")?.asString ?: "affected",
+                peopleCount = o.get("people_count")?.asInt ?: 1,
+                flags = o.getAsJsonArray("flags")?.map { it.asString } ?: emptyList(),
+            )
+        }
+    }
 
     fun loadGraph(ctx: Context): Gis.PedGraph {
         val g = JsonParser.parseString(read(ctx, "chattogram/ped_graph.json")).asJsonObject

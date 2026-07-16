@@ -81,6 +81,10 @@ object Summary {
         append(st.top5.joinToString(",") { "{\"id\":\"${it.id}\",\"loc\":\"${it.loc}\",\"pri\":\"${it.priority}\",\"reason\":\"${it.reason}\"}" })
         append("],\"shortages\":{")
         append(st.shortages.entries.joinToString(",") { "\"${it.key}\":${it.value}" })
-        append("},\"blocked\":[${st.blockedRoads.joinToString(",") { "\"$it\"" }}]}")
+        append("},\"shelters\":[")
+        append(st.shelterPressure.joinToString(",") {
+            "{\"name\":\"${it.name}\",\"occupancy\":${it.occupancy},\"capacity\":${it.capacity}}"
+        })
+        append("],\"blocked\":[${st.blockedRoads.joinToString(",") { "\"$it\"" }}]}")
     }
 }

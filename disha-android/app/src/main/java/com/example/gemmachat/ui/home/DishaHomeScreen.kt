@@ -1,6 +1,8 @@
 package com.example.gemmachat.ui.home
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,10 +26,11 @@ fun DishaHomeScreen(
     onTriage: () -> Unit,
     onFirstAid: () -> Unit,
     onGis: () -> Unit,
+    onSummary: () -> Unit,
     onChat: () -> Unit,
 ) {
     Column(
-        Modifier.fillMaxSize().padding(24.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.Center,
     ) {
         Text("Disha", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
@@ -58,6 +61,13 @@ fun DishaHomeScreen(
             title = "Safe Shelter & Route",
             subtitle = "Nearest shelter + a flood-avoiding route on an offline map",
             onClick = onGis,
+        )
+        Spacer(Modifier.height(12.dp))
+        HomeTile(
+            emoji = "📋",
+            title = "Coordinator Summary",
+            subtitle = "Gemma briefing over triaged field reports",
+            onClick = onSummary,
         )
         Spacer(Modifier.height(12.dp))
         HomeTile(

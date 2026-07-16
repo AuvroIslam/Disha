@@ -23,6 +23,8 @@ import com.example.gemmachat.ui.onboarding.OnboardingScreen
 import com.example.gemmachat.ui.onboarding.OnboardingViewModel
 import com.example.gemmachat.ui.settings.SettingsScreen
 import com.example.gemmachat.ui.settings.SettingsViewModel
+import com.example.gemmachat.ui.summary.SummaryScreen
+import com.example.gemmachat.ui.summary.SummaryViewModel
 import com.example.gemmachat.ui.theme.GemmaChatTheme
 import com.example.gemmachat.ui.triage.TriageScreen
 import com.example.gemmachat.ui.triage.TriageViewModel
@@ -33,6 +35,7 @@ private object Routes {
     const val TRIAGE = "triage"
     const val FIRSTAID = "firstaid"
     const val GIS = "gis"
+    const val SUMMARY = "summary"
     const val CHAT = "chat"
     const val SETTINGS = "settings"
 }
@@ -80,6 +83,7 @@ private fun DishaNavHost() {
                 onTriage = { navController.navigate(Routes.TRIAGE) },
                 onFirstAid = { navController.navigate(Routes.FIRSTAID) },
                 onGis = { navController.navigate(Routes.GIS) },
+                onSummary = { navController.navigate(Routes.SUMMARY) },
                 onChat = { navController.navigate(Routes.CHAT) },
             )
         }
@@ -94,6 +98,10 @@ private fun DishaNavHost() {
         composable(Routes.GIS) {
             val vm: GisViewModel = viewModel(factory = appFactory())
             GisScreen(viewModel = vm, onBack = { navController.popBackStack() })
+        }
+        composable(Routes.SUMMARY) {
+            val vm: SummaryViewModel = viewModel(factory = appFactory())
+            SummaryScreen(viewModel = vm, onBack = { navController.popBackStack() })
         }
         composable(Routes.CHAT) {
             val vm: ChatViewModel = viewModel(factory = appFactory())
