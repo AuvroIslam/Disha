@@ -92,7 +92,7 @@ fun MeshScreen(viewModel: MeshViewModel, onBack: () -> Unit) {
             LaunchedEffect(Unit) { viewModel.start() }
             DisposableEffect(Unit) { onDispose { viewModel.stop() } }
 
-            HeroBanner(R.drawable.hero_mesh, 116.dp,
+            HeroBanner(R.drawable.hero_mesh,
                 title = "Mesh SOS", subtitle = "Send SOS, no internet")
             Spacer(Modifier.height(12.dp))
 

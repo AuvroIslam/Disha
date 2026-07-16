@@ -75,7 +75,7 @@ fun TriageScreen(viewModel: TriageViewModel, onBack: () -> Unit) {
         Column(
             Modifier.padding(pad).padding(16.dp).fillMaxSize(),
         ) {
-            HeroBanner(R.drawable.hero_triage, 118.dp,
+            HeroBanner(R.drawable.hero_triage,
                 title = "Rescue Triage", subtitle = "Prioritise SOS by urgency")
             Spacer(Modifier.height(12.dp))
             // engine status line

@@ -47,6 +47,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.gemmachat.R
+import com.example.gemmachat.ui.components.HeroBanner
 import com.example.gemmachat.ui.theme.AccentPurple
 import com.example.gemmachat.ui.theme.BgCard
 import com.example.gemmachat.ui.theme.TextPrimary
@@ -86,8 +87,8 @@ fun DishaHomeScreen(
     ) {
         // ---- Header: logo + brand + actions ----
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Image(painterResource(R.drawable.disha_logo), contentDescription = null,
-                modifier = Modifier.size(46.dp))
+            Image(painterResource(R.drawable.disha_app_icon), contentDescription = null,
+                modifier = Modifier.size(48.dp).clip(CircleShape))
             Spacer(Modifier.width(8.dp))
             Column {
                 Text("দিশা", color = AccentPurple, fontWeight = FontWeight.ExtraBold, fontSize = 26.sp)
@@ -112,11 +113,10 @@ fun DishaHomeScreen(
 
         // ---- Hero illustration ----
         Spacer(Modifier.height(16.dp))
-        Image(
-            painter = painterResource(R.drawable.hero_home),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxWidth().height(170.dp).clip(RoundedCornerShape(24.dp)),
+        HeroBanner(
+            R.drawable.hero_home,
+            title = "We're here to help",
+            subtitle = "Offline AI, right on your device",
         )
 
         // ---- Offline mode status card ----

@@ -67,7 +67,7 @@ fun FirstAidScreen(viewModel: FirstAidViewModel, onBack: () -> Unit) {
         Column(
             Modifier.padding(pad).padding(16.dp).fillMaxSize().verticalScroll(rememberScrollState()),
         ) {
-            HeroBanner(R.drawable.hero_firstaid, 128.dp,
+            HeroBanner(R.drawable.hero_firstaid,
                 title = "First Aid", subtitle = "Cited, step-by-step guidance")
             Spacer(Modifier.height(12.dp))
             when {

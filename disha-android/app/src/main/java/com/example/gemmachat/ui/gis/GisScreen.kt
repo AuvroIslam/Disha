@@ -75,7 +75,7 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
         Column(
             Modifier.padding(pad).padding(16.dp).fillMaxSize().verticalScroll(rememberScrollState()),
         ) {
-            HeroBanner(R.drawable.hero_shelter, 128.dp,
+            HeroBanner(R.drawable.hero_shelter,
                 title = "Safe Shelter & Route", subtitle = "Nearest shelter, flood-safe route")
             Spacer(Modifier.height(12.dp))
             Text("Offline map · Chattogram demo pack. Your location: Halishahar (near flooding).",
