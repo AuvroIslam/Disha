@@ -19,11 +19,18 @@ data class SosEntry(
  * Live, shared store of the SOS reports this device has genuinely handled. Triage adds cases it
  * assesses; Mesh adds SOS it sends or receives. The Coordinator Summary reads only from here, so
  * the briefing reflects the real situation on this device rather than any bundled sample data.
+ *
+ * Mesh envelopes that fail signature verification never land in [entries] — a forged or corrupted
+ * report must not be able to distort rescue priority. They go to [quarantine] instead, visible to
+ * an operator but excluded from every aggregate count and from the coordinator briefing.
  */
 class SosRepository {
 
     private val _entries = MutableStateFlow<List<SosEntry>>(emptyList())
     val entries: StateFlow<List<SosEntry>> = _entries
+
+    private val _quarantine = MutableStateFlow<List<SosEntry>>(emptyList())
+    val quarantine: StateFlow<List<SosEntry>> = _quarantine
 
     private var lastBriefedCount = 0
 
@@ -31,8 +38,14 @@ class SosRepository {
         _entries.value = _entries.value + entry
     }
 
+    /** Holds a report that failed mesh signature verification — kept for review, not trusted. */
+    fun addQuarantined(entry: SosEntry) {
+        _quarantine.value = _quarantine.value + entry
+    }
+
     fun clear() {
         _entries.value = emptyList()
+        _quarantine.value = emptyList()
         lastBriefedCount = 0
     }
 

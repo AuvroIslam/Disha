@@ -66,6 +66,15 @@ fun SummaryScreen(viewModel: SummaryViewModel, onBack: () -> Unit) {
             Spacer(Modifier.height(8.dp))
             Text("${ui.reportCount} " + tr("report(s) collected so far.", "টি রিপোর্ট এ পর্যন্ত সংগৃহীত।"),
                 style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+            if (ui.quarantineCount > 0) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "⚠ ${ui.quarantineCount} " + tr(
+                        "mesh report(s) failed signature verification — held for review, excluded from this briefing.",
+                        "মেশ রিপোর্ট স্বাক্ষর যাচাইয়ে ব্যর্থ — পর্যালোচনার জন্য রাখা হয়েছে, এই ব্রিফিং থেকে বাদ।"),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error)
+            }
 
             Spacer(Modifier.height(12.dp))
             Button(onClick = { viewModel.generate() }, enabled = !ui.busy && ui.reportCount > 0) {

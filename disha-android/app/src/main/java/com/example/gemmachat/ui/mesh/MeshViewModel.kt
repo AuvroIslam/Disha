@@ -52,7 +52,10 @@ class MeshViewModel(application: Application) : AndroidViewModel(application) {
                 val lon = (env.payload["lon"] as? String)?.toDoubleOrNull()
                 val sos = SosReport(text = text, lat = lat, lon = lon, hops = hops)
                 val tr = Triage.fallbackTriage(sos)
-                app.sosRepository.add(SosEntry(sos, tr, source = "mesh_recv", verified = ok, hops = hops))
+                val entry = SosEntry(sos, tr, source = "mesh_recv", verified = ok, hops = hops)
+                // Unverified envelopes are quarantined, never merged into the shared SOS dataset —
+                // a forged/corrupted report must not be able to distort rescue priority.
+                if (ok) app.sosRepository.add(entry) else app.sosRepository.addQuarantined(entry)
                 val msg = MeshMsg(text, env.sender, ok, hops, tr.priority, tr.color, mine = false)
                 _ui.value = _ui.value.copy(messages = _ui.value.messages + msg)
             },

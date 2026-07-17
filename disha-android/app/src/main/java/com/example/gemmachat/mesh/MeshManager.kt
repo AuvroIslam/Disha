@@ -2,7 +2,6 @@ package com.example.gemmachat.mesh
 
 import android.content.Context
 import com.example.gemmachat.core.SignedEnvelope
-import com.example.gemmachat.core.DevSigner
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.AdvertisingOptions
 import com.google.android.gms.nearby.connection.ConnectionInfo
@@ -32,7 +31,7 @@ class MeshManager(
     private val onReceived: (env: SignedEnvelope, verified: Boolean, hops: Int) -> Unit,
 ) {
     private val client: ConnectionsClient = Nearby.getConnectionsClient(context)
-    private val signer = DevSigner(localName)
+    private val signer = MeshIdentity.loadOrCreateSigner(context, localName)
     private val gson = Gson()
     private var clock = 0
     private val seen = mutableSetOf<String>()
@@ -141,10 +140,12 @@ class MeshManager(
                 type = (d["type"] as? String) ?: "sos",
                 version = (d["version"] as Double).toInt(),
                 ttl = (d["ttl"] as Double).toInt(),
+                scheme = (d["scheme"] as? String) ?: "dev-sha256",
+                senderKey = (d["sender_key"] as? String) ?: "",
             )
             if (env.msgId in seen) return             // dedup
             seen.add(env.msgId)
-            val ok = env.verify()
+            val ok = env.isProductionTrusted()
             clock = maxOf(clock, env.lamport) + 1     // Lamport update
             val hops = 4 - env.ttl
             onReceived(env, ok, hops)

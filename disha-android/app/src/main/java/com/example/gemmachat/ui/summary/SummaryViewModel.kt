@@ -20,6 +20,7 @@ data class SummaryUiState(
     val engineReady: Boolean = false,
     val busy: Boolean = false,
     val reportCount: Int = 0,
+    val quarantineCount: Int = 0,
     val briefing: String? = null,
     val stats: Summary.Stats? = null,
     val error: String? = null,
@@ -34,15 +35,24 @@ class SummaryViewModel(application: Application) : AndroidViewModel(application)
     val ui: StateFlow<SummaryUiState> = _ui
 
     init {
+        // Live counts — a coordinator watching this screen during an active incident must see
+        // new (or newly quarantined) reports as they arrive, not just on next screen visit.
+        viewModelScope.launch {
+            app.sosRepository.entries.collect { list ->
+                _ui.value = _ui.value.copy(reportCount = list.size)
+            }
+        }
+        viewModelScope.launch {
+            app.sosRepository.quarantine.collect { list ->
+                _ui.value = _ui.value.copy(quarantineCount = list.size)
+            }
+        }
         viewModelScope.launch {
             if (!app.engineHolder.isReady()) {
                 val model = HfDownloadRepository.modelFile(getApplication())
                 if (model.exists()) app.engineHolder.loadModel(model)
             }
-            _ui.value = _ui.value.copy(
-                engineLoading = false, engineReady = app.engineHolder.isReady(),
-                reportCount = app.sosRepository.entries.value.size,
-            )
+            _ui.value = _ui.value.copy(engineLoading = false, engineReady = app.engineHolder.isReady())
         }
     }
 
@@ -51,7 +61,7 @@ class SummaryViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             val reports = app.sosRepository.reports()
             if (reports.isEmpty()) {
-                _ui.value = _ui.value.copy(reportCount = 0, briefing = null, stats = null, error = null)
+                _ui.value = _ui.value.copy(briefing = null, stats = null, error = null)
                 return@launch
             }
             _ui.value = _ui.value.copy(busy = true, error = null)
@@ -75,10 +85,7 @@ class SummaryViewModel(application: Application) : AndroidViewModel(application)
                         newSince = newSince, gemma = if (ready) engine else null)
                 }
                 app.sosRepository.markBriefed()
-                _ui.value = _ui.value.copy(
-                    busy = false, briefing = out.briefing, stats = out.stats,
-                    reportCount = reports.size,
-                )
+                _ui.value = _ui.value.copy(busy = false, briefing = out.briefing, stats = out.stats)
             } catch (e: Exception) {
                 _ui.value = _ui.value.copy(busy = false, error = e.message)
             }

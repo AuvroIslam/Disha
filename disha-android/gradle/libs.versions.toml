@@ -21,6 +21,7 @@ coil = "2.7.0"
 playServicesNearby = "19.3.0"
 playServicesLocation = "21.3.0"
 lucide = "1.1.1"
+bouncycastle = "1.78.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -63,6 +64,7 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 play-services-nearby = { group = "com.google.android.gms", name = "play-services-nearby", version.ref = "playServicesNearby" }
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 lucide-icons = { group = "br.com.devsrsouza.compose.icons", name = "feather", version.ref = "lucide" }
+bouncycastle-prov = { group = "org.bouncycastle", name = "bcprov-jdk18on", version.ref = "bouncycastle" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

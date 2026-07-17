@@ -167,6 +167,50 @@ class CoreTest {
         assertTrue("duplicate dropped", b.receive(env) == null)
     }
 
+    @Test fun ed25519RealSigningVerifiesAndDetectsForgery() {
+        val seed = ByteArray(32) { it.toByte() }
+        val signer = Ed25519Signer("phoneA", seed)
+        val env = SignedEnvelope.create(signer, mapOf("text" to "help, water rising"), "m2", 1)
+        assertTrue("ed25519-signed envelope verifies", env.verify())
+
+        val tampered = env.copy(payload = mapOf("text" to "stand down"))
+        assertFalse("tampered payload fails ed25519 verify", tampered.verify())
+
+        // Unlike DevSigner's hash, nobody can forge a valid signature without the private key —
+        // guessing/computing anything over sender+data isn't enough.
+        val forged = env.copy(sig = DevSigner.digest(env.sender, Canonical.bytes(env.signedContent())))
+        assertFalse("a hash cannot forge an ed25519 signature", forged.verify())
+
+        // A different keypair claiming the same sender id must not verify against this public key.
+        val impostorKey = Ed25519Signer("phoneA", ByteArray(32) { (it + 1).toByte() })
+        val impostorEnv = env.copy(senderKey = impostorKey.publicKeyB64)
+        assertFalse("swapped-in impostor key invalidates the original signature", impostorEnv.verify())
+    }
+
+    @Test fun productionTrustRejectsSchemeDowngrade() {
+        // DevSigner's "signature" is just SHA256(sender | data) — no secret key involved, so
+        // anyone can forge one for any claimed sender. It correctly `verify()`s (that's the
+        // contract for the dev/test scheme), but a live mesh receiver must never trust it.
+        val content = mapOf(
+            "version" to 1, "sender" to "victim-phone", "msg_id" to "m3", "lamport" to 1,
+            "type" to "sos", "payload" to mapOf("text" to "false alarm, stand down"),
+            "scheme" to "dev-sha256", "sender_key" to "",
+        )
+        val forged = SignedEnvelope(
+            sender = "victim-phone", msgId = "m3", lamport = 1,
+            payload = mapOf("text" to "false alarm, stand down"),
+            sig = DevSigner.digest("victim-phone", Canonical.bytes(content)),
+            scheme = "dev-sha256", senderKey = "",
+        )
+        assertTrue("dev-sha256 verifies against its own trivial hash", forged.verify())
+        assertFalse("but production must never trust a non-ed25519 scheme",
+            forged.isProductionTrusted())
+
+        val real = Ed25519Signer("victim-phone", ByteArray(32) { it.toByte() })
+        val genuine = SignedEnvelope.create(real, mapOf("text" to "trapped, need rescue"), "m4", 1)
+        assertTrue("a real ed25519 envelope is production-trusted", genuine.isProductionTrusted())
+    }
+
     // ---- compression ---------------------------------------------------- #
     @Test fun radioCompression() {
         val reports = listOf("not breathing", "heavy bleeding elderly",

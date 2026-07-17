@@ -99,6 +99,7 @@ dependencies {
     implementation(libs.play.services.nearby)
     implementation(libs.play.services.location)
     implementation(libs.lucide.icons)
+    implementation(libs.bouncycastle.prov)
 
     debugImplementation(libs.androidx.ui.tooling)
     testImplementation(libs.junit)
