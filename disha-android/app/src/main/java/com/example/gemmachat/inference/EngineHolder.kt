@@ -32,10 +32,11 @@ class EngineHolder(private val context: Context) {
 
     private fun langDirective(): String =
         if (respondInBangla) {
-            "\n\nIMPORTANT: Write your entire response in Bangla (বাংলা) only. " +
-                "Numbers, place names and citation tags may stay as-is."
+            "\n\nIMPORTANT: Write your entire reply in Bangla (বাংলা). Keep numbers, rates, doses, " +
+                "place names and citation tags exactly as given (for example \"100-120\")."
         } else {
-            ""
+            "\n\nIMPORTANT: Write your entire reply in English. Keep numbers, rates, doses and " +
+                "citation tags exactly as given (for example \"100-120\")."
         }
 
     suspend fun loadModel(modelFile: File): Result<Unit> = mutex.withLock {
