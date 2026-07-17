@@ -51,8 +51,19 @@ class FirstAidViewModel(application: Application) : AndroidViewModel(application
             try {
                 val useGemma = app.engineHolder.isReady()
                 app.engineHolder.respondInBangla = app.prefs.isBangla
+                // Hybrid retrieval: the knowledge base has English tags only (one source of truth).
+                // English queries match directly. A Bangla query that matches nothing is translated
+                // to English once, then retried — so we only pay the extra call when tags miss.
+                var searchQ = q
+                if (useGemma && hasNonLatin(q)) {
+                    val direct = withContext(Dispatchers.Default) { retriever.search(q, 1) }
+                    if (direct.isEmpty()) {
+                        val english = app.engineHolder.translateToEnglish(q)
+                        if (english.isNotBlank()) searchQ = english
+                    }
+                }
                 val ans = withContext(Dispatchers.Default) {
-                    Rag.firstAidAnswer(q, retriever, if (useGemma) engine else null, k = 4)
+                    Rag.firstAidAnswer(q, retriever, if (useGemma) engine else null, k = 4, searchQuery = searchQ)
                 }
                 _ui.value = _ui.value.copy(
                     busy = false, answer = ans.answer, citations = ans.citations, redFlag = ans.redFlag)
@@ -61,4 +72,7 @@ class FirstAidViewModel(application: Application) : AndroidViewModel(application
             }
         }
     }
+
+    /** True if the text contains Bangla characters (U+0980–U+09FF). */
+    private fun hasNonLatin(s: String): Boolean = s.any { it.code in 0x0980..0x09FF }
 }

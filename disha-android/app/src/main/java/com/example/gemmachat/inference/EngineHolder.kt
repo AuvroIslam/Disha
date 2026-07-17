@@ -141,6 +141,37 @@ class EngineHolder(private val context: Context) {
         }
     }
 
+    /**
+     * Translate arbitrary text to concise English, for keyword retrieval. Uses a dedicated
+     * temp conversation with NO language directive, so the output is always English regardless
+     * of the app's current answer language.
+     */
+    suspend fun translateToEnglish(text: String): String = mutex.withLock {
+        withContext(Dispatchers.IO) {
+            val eng = engine ?: return@withContext ""
+            closeConversationLocked()
+            val cfg = ConversationConfig(
+                systemInstruction = Contents.of(
+                    "You are a translator. Translate the user's message into concise English. " +
+                        "Reply with ONLY the English translation — no notes, no quotes, no explanation.",
+                ),
+                samplerConfig = SamplerConfig(topK = 40, topP = 0.9, temperature = 0.0),
+            )
+            val conv = eng.createConversation(cfg)
+            try {
+                val sb = StringBuilder()
+                conv.sendMessageAsync(text, emptyMap()).collect { msg -> sb.append(textFromMessage(msg)) }
+                sb.toString().trim()
+            } finally {
+                try {
+                    conv.close()
+                } catch (_: Throwable) {
+                }
+                newConversationLocked()
+            }
+        }
+    }
+
     private fun newConversationLocked() {
         val eng = engine ?: return
         val cfg = ConversationConfig(

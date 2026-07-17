@@ -53,9 +53,11 @@ object Rag {
 
     fun firstAidAnswer(
         query: String, retriever: KeywordRetriever, gemma: LlmEngine? = null,
-        k: Int = 3, hazard: String? = null,
+        k: Int = 3, hazard: String? = null, searchQuery: String = query,
     ): Answer {
-        val chunks = retriever.search(query, k, hazard)
+        // Retrieval matches on searchQuery (may be an English translation); the answer is written
+        // from the original query, so Gemma still sees the user's real wording and language.
+        val chunks = retriever.search(searchQuery, k, hazard)
         val citations = chunks.mapIndexed { i, c -> Citation(i + 1, c.pack, c.source, c.id) }
         val flag = redFlag(query, chunks)
         if (chunks.isEmpty()) {
