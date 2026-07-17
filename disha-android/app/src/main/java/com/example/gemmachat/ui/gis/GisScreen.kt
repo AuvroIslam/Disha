@@ -2,6 +2,13 @@ package com.example.gemmachat.ui.gis
 
 import android.Manifest
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,11 +16,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.ArrowLeft
+import compose.icons.feathericons.Maximize2
+import compose.icons.feathericons.X
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,14 +38,26 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
 import com.example.gemmachat.R
 import com.example.gemmachat.core.Gis
@@ -52,6 +74,7 @@ private val ROAD = Color(0xFF9E9E9E)
 private val FLOODED_ROAD = Color(0xFFE53935)
 private val ROUTE = Color(0xFFFF9800)
 private val SHELTER = Color(0xFF43A047)
+private val USER = Color(0xFF1B1030)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
@@ -61,18 +84,22 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
         viewModel.findNearestShelter()
     }
 
-    // bounding box over the current geodata (for the mini-map projection)
-    val bbox = remember(ui.userLat, ui.userLon, ui.shelters, ui.detailed, ui.nearbyPublic) {
+    // Frame the map on what matters — you, the route and the shelters — not the whole road
+    // extract, so the default view is readable. Pinch-zoom lets the user go closer.
+    val bbox = remember(ui.userLat, ui.userLon, ui.shelters, ui.detailed, ui.nearbyPublic, ui.route) {
         val lats = ArrayList<Double>(); val lons = ArrayList<Double>()
-        ui.graph?.nodes?.values?.forEach { lats.add(it[0]); lons.add(it[1]) }
+        ui.route?.polyline?.forEach { lats.add(it[0]); lons.add(it[1]) }
         ui.floodPolys.forEach { r -> r.forEach { lats.add(it[1]); lons.add(it[0]) } }
         val pts = if (ui.detailed) ui.shelters.map { it.lat to it.lon }
         else ui.nearbyPublic.map { it.shelter.lat to it.shelter.lon }
         pts.forEach { lats.add(it.first); lons.add(it.second) }
         lats.add(ui.userLat); lons.add(ui.userLon)
         if (lats.size < 2) { lats.add(ui.userLat + 0.02); lons.add(ui.userLon + 0.02) }
-        doubleArrayOf(lats.min(), lats.max(), lons.min(), lons.max())
+        val padLat = (lats.max() - lats.min()).coerceAtLeast(0.004) * 0.12
+        val padLon = (lons.max() - lons.min()).coerceAtLeast(0.004) * 0.12
+        doubleArrayOf(lats.min() - padLat, lats.max() + padLat, lons.min() - padLon, lons.max() + padLon)
     }
+    var showFullMap by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -134,72 +161,31 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
                     else tr("Find nearest safe shelter", "নিকটতম নিরাপদ আশ্রয় খুঁজুন"))
             }
 
-            // ---- mini map ---- //
+            // ---- mini map — static preview; tap opens a full-screen zoomable map ---- //
             Spacer(Modifier.height(12.dp))
             Card(Modifier.fillMaxWidth()) {
-                Canvas(Modifier.fillMaxWidth().height(280.dp).padding(8.dp)) {
-                    val w = size.width; val h = size.height; val p = 20f
-                    val minLat = bbox[0]; val maxLat = bbox[1]; val minLon = bbox[2]; val maxLon = bbox[3]
-                    val dLat = (maxLat - minLat).let { if (it == 0.0) 1e-6 else it }
-                    val dLon = (maxLon - minLon).let { if (it == 0.0) 1e-6 else it }
-                    fun ox(lon: Double) = (((lon - minLon) / dLon).toFloat()) * (w - 2 * p) + p
-                    fun oy(lat: Double) = (((maxLat - lat) / dLat).toFloat()) * (h - 2 * p) + p
-
-                    val dash = PathEffect.dashPathEffect(floatArrayOf(12f, 10f))
-                    // flood polygon
-                    ui.floodPolys.forEach { ring ->
-                        val path = Path()
-                        ring.forEachIndexed { i, pt ->
-                            val x = ox(pt[0]); val y = oy(pt[1])
-                            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
-                        }
-                        path.close()
-                        drawPath(path, FLOOD, alpha = 0.22f)
+                Box(
+                    Modifier.fillMaxWidth().height(260.dp).clipToBounds()
+                        .clickable { showFullMap = true },
+                ) {
+                    Canvas(Modifier.fillMaxSize().padding(10.dp)) { drawShelterMap(ui, bbox) }
+                    Row(
+                        Modifier.align(Alignment.TopEnd).padding(8.dp)
+                            .clip(RoundedCornerShape(8.dp)).background(Color(0xCC1B1030))
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(FeatherIcons.Maximize2, null, tint = Color.White, modifier = Modifier.size(13.dp))
+                        Spacer(Modifier.width(5.dp))
+                        Text(tr("Tap to enlarge", "বড় করতে চাপ দিন"),
+                            color = Color.White, style = MaterialTheme.typography.labelSmall)
                     }
-                    // roads (red dashed = flooded) — only in detailed mode
-                    ui.graph?.let { g ->
-                        g.edges.forEach { (u, v) ->
-                            val a = g.nodes.getValue(u); val b = g.nodes.getValue(v)
-                            val flooded = Gis.segmentCrossesFlood(a, b, ui.floodPolys)
-                            drawLine(
-                                color = if (flooded) FLOODED_ROAD else ROAD,
-                                start = Offset(ox(a[1]), oy(a[0])), end = Offset(ox(b[1]), oy(b[0])),
-                                strokeWidth = 3f, pathEffect = if (flooded) dash else null,
-                            )
-                        }
-                    }
-                    // detailed route (orange), else a dashed direction line to the nearest shelter
-                    val poly = ui.route?.polyline
-                    if (poly != null) {
-                        for (i in 0 until poly.size - 1) {
-                            drawLine(ROUTE,
-                                Offset(ox(poly[i][1]), oy(poly[i][0])),
-                                Offset(ox(poly[i + 1][1]), oy(poly[i + 1][0])), strokeWidth = 8f)
-                        }
-                    } else ui.nearbyPublic.firstOrNull()?.let { top ->
-                        drawLine(ROUTE,
-                            Offset(ox(ui.userLon), oy(ui.userLat)),
-                            Offset(ox(top.shelter.lon), oy(top.shelter.lat)),
-                            strokeWidth = 5f, pathEffect = dash)
-                    }
-                    // shelters (green) + user (black)
-                    if (ui.detailed) ui.shelters.forEach { s ->
-                        drawCircle(SHELTER, radius = 12f, center = Offset(ox(s.lon), oy(s.lat)))
-                    } else ui.nearbyPublic.forEach { h ->
-                        drawCircle(SHELTER, radius = 10f, center = Offset(ox(h.shelter.lon), oy(h.shelter.lat)))
-                    }
-                    drawCircle(Color.Black, radius = 12f,
-                        center = Offset(ox(ui.userLon), oy(ui.userLat)))
                 }
             }
-            Text(
-                if (ui.detailed)
-                    tr("● you   ● shelter   ▬ safe route   ┈ flooded road   ▨ flood zone",
-                        "● আপনি   ● আশ্রয়   ▬ নিরাপদ পথ   ┈ বন্যা রাস্তা   ▨ বন্যা এলাকা")
-                else tr("● you   ● nearest shelter   ┈ direction",
-                    "● আপনি   ● নিকটতম আশ্রয়   ┈ দিক"),
-                style = MaterialTheme.typography.labelSmall,
-                modifier = Modifier.padding(top = 4.dp))
+
+            if (showFullMap) FullMapDialog(ui, bbox, onClose = { showFullMap = false })
+            Spacer(Modifier.height(4.dp))
+            MapLegend(ui.detailed)
             if (ui.detailed) {
                 Text(
                     tr("Roads: © OpenStreetMap contributors. The flood zone is an illustrative scenario, not live data.",
@@ -215,7 +201,8 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
                 Spacer(Modifier.height(12.dp))
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp)) {
-                        val top = ui.ranked.firstOrNull()
+                        val top = ui.ranked.firstOrNull { it.shelterId == ui.selectedShelterId }
+                            ?: ui.ranked.firstOrNull()
                         Text("→ ${top?.name ?: tr("Shelter", "আশ্রয়")}",
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Text("${tr("Walking route", "হাঁটার পথ")}: ${fmtDist(r.distM)}",
@@ -259,7 +246,10 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
                 Spacer(Modifier.height(8.dp))
                 Text(tr("Ranked shelters", "সাজানো আশ্রয়কেন্দ্র"),
                     style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                ui.ranked.forEach { s -> ShelterRow(s) }
+                ui.ranked.forEach { s ->
+                    ShelterRow(s, selected = s.shelterId == ui.selectedShelterId,
+                        onClick = { viewModel.selectShelter(s) })
+                }
             } else if (!ui.detailed && ui.nearbyPublic.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
                 Text(tr("Nearest shelters (schools & colleges)", "নিকটতম আশ্রয় (স্কুল ও কলেজ)"),
@@ -280,15 +270,22 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-private fun ShelterRow(s: Gis.RankedShelter) {
-    Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+private fun ShelterRow(s: Gis.RankedShelter, selected: Boolean, onClick: () -> Unit) {
+    Card(
+        Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable(onClick = onClick)
+            .let {
+                if (selected) it.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+                else it
+            },
+    ) {
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(s.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                Text(s.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false))
                 if (s.onHighGround) {
                     Spacer(Modifier.width(8.dp))
-                    Text(tr("HIGH GROUND", "উঁচু জায়গা"), style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary)
+                    HighGroundBadge()
                 }
             }
             Text("${fmtDist(s.distM)} · ${s.capacityLeft} ${tr("spaces free", "জায়গা খালি")} · " +
@@ -296,6 +293,19 @@ private fun ShelterRow(s: Gis.RankedShelter) {
                 style = MaterialTheme.typography.bodySmall)
         }
     }
+}
+
+@Composable
+private fun HighGroundBadge() {
+    Text(
+        tr("HIGH GROUND", "উঁচু জায়গা"),
+        style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary, maxLines = 1, softWrap = false,
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+    )
 }
 
 @Composable
@@ -317,3 +327,153 @@ private fun PublicShelterRow(h: PublicShelterHit) {
 }
 
 private fun fmtDist(m: Int): String = if (m >= 1000) "%.1f km".format(m / 1000.0) else "$m m"
+
+@Composable
+private fun MapLegend(detailed: Boolean) {
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            LegendDot(USER, ring = true)
+            Spacer(Modifier.width(4.dp))
+            Text(tr("you", "আপনি"), style = MaterialTheme.typography.labelSmall)
+            Spacer(Modifier.width(14.dp))
+            LegendDot(SHELTER)
+            Spacer(Modifier.width(4.dp))
+            Text(if (detailed) tr("shelter", "আশ্রয়") else tr("nearest shelter", "নিকটতম আশ্রয়"),
+                style = MaterialTheme.typography.labelSmall)
+        }
+        Spacer(Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (detailed) {
+                LegendLine(ROUTE)
+                Spacer(Modifier.width(4.dp))
+                Text(tr("safe route", "নিরাপদ পথ"), style = MaterialTheme.typography.labelSmall)
+                Spacer(Modifier.width(14.dp))
+                LegendLine(FLOODED_ROAD, dashed = true)
+                Spacer(Modifier.width(4.dp))
+                Text(tr("flooded road", "বন্যা রাস্তা"), style = MaterialTheme.typography.labelSmall)
+                Spacer(Modifier.width(14.dp))
+                LegendSwatch(FLOOD)
+                Spacer(Modifier.width(4.dp))
+                Text(tr("flood zone", "বন্যা এলাকা"), style = MaterialTheme.typography.labelSmall)
+            } else {
+                LegendLine(ROUTE, dashed = true)
+                Spacer(Modifier.width(4.dp))
+                Text(tr("direction", "দিক"), style = MaterialTheme.typography.labelSmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun LegendDot(color: Color, ring: Boolean = false) {
+    Box(
+        Modifier.size(10.dp).clip(CircleShape)
+            .background(if (ring) Color.White else color)
+            .let { if (ring) it.border(1.5.dp, color, CircleShape) else it },
+    )
+}
+
+@Composable
+private fun LegendLine(color: Color, dashed: Boolean = false) {
+    if (dashed) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.width(6.dp).height(3.dp).background(color))
+            Spacer(Modifier.width(2.dp))
+            Box(Modifier.width(6.dp).height(3.dp).background(color))
+        }
+    } else {
+        Box(Modifier.width(18.dp).height(3.dp).background(color))
+    }
+}
+
+@Composable
+private fun LegendSwatch(color: Color) {
+    Box(Modifier.size(10.dp).background(color.copy(alpha = 0.35f)))
+}
+
+@Composable
+private fun FullMapDialog(ui: GisUiState, bbox: DoubleArray, onClose: () -> Unit) {
+    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        var scale by remember { mutableFloatStateOf(1f) }
+        var pan by remember { mutableStateOf(Offset.Zero) }
+        Box(Modifier.fillMaxSize().background(Color(0xFF0E0A1A))) {
+            Canvas(
+                Modifier.fillMaxSize().padding(16.dp)
+                    .pointerInput(Unit) {
+                        detectTransformGestures { _, panChange, zoom, _ ->
+                            scale = (scale * zoom).coerceIn(1f, 8f)
+                            pan += panChange
+                        }
+                    }
+                    .graphicsLayer {
+                        scaleX = scale; scaleY = scale
+                        translationX = pan.x; translationY = pan.y
+                    },
+            ) { drawShelterMap(ui, bbox) }
+            IconButton(onClick = onClose, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)) {
+                Icon(FeatherIcons.X, contentDescription = "Close", tint = Color.White)
+            }
+            Text(tr("Pinch to zoom · drag to pan", "জুম করতে দুই আঙুল · সরাতে টানুন"),
+                color = Color.White.copy(alpha = 0.75f), style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp))
+        }
+    }
+}
+
+/** Shared renderer for the shelter mini-map, used by both the inline preview and the dialog. */
+private fun DrawScope.drawShelterMap(ui: GisUiState, bbox: DoubleArray) {
+    val w = size.width; val h = size.height; val p = 14f
+    val minLat = bbox[0]; val maxLat = bbox[1]; val minLon = bbox[2]; val maxLon = bbox[3]
+    val dLat = (maxLat - minLat).let { if (it == 0.0) 1e-6 else it }
+    val dLon = (maxLon - minLon).let { if (it == 0.0) 1e-6 else it }
+    fun ox(lon: Double) = (((lon - minLon) / dLon).toFloat()) * (w - 2 * p) + p
+    fun oy(lat: Double) = (((maxLat - lat) / dLat).toFloat()) * (h - 2 * p) + p
+
+    val dash = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))
+    ui.floodPolys.forEach { ring ->
+        val path = Path()
+        ring.forEachIndexed { i, pt ->
+            val x = ox(pt[0]); val y = oy(pt[1])
+            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        }
+        path.close()
+        drawPath(path, FLOOD, alpha = 0.28f)
+    }
+    ui.graph?.let { g ->
+        g.edges.forEach { (u, v) ->
+            val a = g.nodes.getValue(u); val b = g.nodes.getValue(v)
+            val flooded = Gis.segmentCrossesFlood(a, b, ui.floodPolys)
+            drawLine(
+                color = if (flooded) FLOODED_ROAD else ROAD.copy(alpha = 0.35f),
+                start = Offset(ox(a[1]), oy(a[0])), end = Offset(ox(b[1]), oy(b[0])),
+                strokeWidth = if (flooded) 2.5f else 1.6f,
+                pathEffect = if (flooded) dash else null,
+            )
+        }
+    }
+    val poly = ui.route?.polyline
+    if (poly != null) {
+        for (i in 0 until poly.size - 1) {
+            drawLine(ROUTE, Offset(ox(poly[i][1]), oy(poly[i][0])),
+                Offset(ox(poly[i + 1][1]), oy(poly[i + 1][0])), strokeWidth = 9f, cap = StrokeCap.Round)
+        }
+    } else ui.nearbyPublic.firstOrNull()?.let { top ->
+        drawLine(ROUTE, Offset(ox(ui.userLon), oy(ui.userLat)),
+            Offset(ox(top.shelter.lon), oy(top.shelter.lat)),
+            strokeWidth = 5f, pathEffect = dash, cap = StrokeCap.Round)
+    }
+    val shelterPts = if (ui.detailed) ui.shelters.map { it.id to (it.lon to it.lat) }
+    else ui.nearbyPublic.map { it.shelter.name to (it.shelter.lon to it.shelter.lat) }
+    shelterPts.forEach { (id, ll) ->
+        val (lon, lat) = ll
+        val selected = ui.detailed && id == ui.selectedShelterId
+        val c = Offset(ox(lon), oy(lat))
+        if (selected) {
+            drawCircle(Color.White, 15f, c); drawCircle(ROUTE, 11f, c)
+        } else {
+            drawCircle(Color.White, 12f, c); drawCircle(SHELTER, 8.5f, c)
+        }
+    }
+    val uc = Offset(ox(ui.userLon), oy(ui.userLat))
+    drawCircle(Color.White, 14f, uc); drawCircle(USER, 10f, uc)
+}

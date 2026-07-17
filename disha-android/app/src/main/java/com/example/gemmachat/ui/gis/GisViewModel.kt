@@ -34,6 +34,7 @@ data class GisUiState(
     val naiveCrossesFlood: Boolean = false,
     val elderly: Boolean = false,
     val computed: Boolean = false,
+    val selectedShelterId: String? = null,
 )
 
 class GisViewModel(application: Application) : AndroidViewModel(application) {
@@ -85,6 +86,7 @@ class GisViewModel(application: Application) : AndroidViewModel(application) {
                     shelters = shelters, floodPolys = flood, graph = graph,
                     ranked = ranked, nearbyPublic = emptyList(),
                     route = route, naiveCrossesFlood = naive, computed = true,
+                    selectedShelterId = top?.shelterId,
                 )
             } else {
                 // No detailed map here — nationwide fallback on the real schools/colleges layer.
@@ -97,6 +99,22 @@ class GisViewModel(application: Application) : AndroidViewModel(application) {
                     route = null, naiveCrossesFlood = false, computed = true,
                 )
             }
+        }
+    }
+
+    fun selectShelter(s: Gis.RankedShelter) {
+        val cur = _ui.value
+        val graph = cur.graph ?: return
+        if (s.shelterId == cur.selectedShelterId) return
+        viewModelScope.launch {
+            val route = withContext(Dispatchers.Default) {
+                Gis.safeRoute(cur.userLat, cur.userLon, s.lat, s.lon, graph, cur.floodPolys)
+            }
+            val naive = Gis.segmentCrossesFlood(
+                doubleArrayOf(cur.userLat, cur.userLon), doubleArrayOf(s.lat, s.lon), cur.floodPolys)
+            _ui.value = _ui.value.copy(
+                selectedShelterId = s.shelterId, route = route, naiveCrossesFlood = naive,
+            )
         }
     }
 
