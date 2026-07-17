@@ -74,6 +74,15 @@ object Rag {
             Safety.ensureDisclaimer(
                 gemma.generate(Prompts.FIRST_AID_SYSTEM, user, temperature = 0.4, maxTokens = 400))
         }
-        return Answer(answer, citations, flag, chunks.map { it.id })
+        // Retrieval casts a wide net, so some retrieved passages are irrelevant and the answer
+        // never cites them. Only list the ones it actually cited — otherwise we imply the advice
+        // came from, say, a snakebite guideline. A refusal cites nothing, so it lists nothing.
+        val cited = citedNumbers(answer)
+        val shown = citations.filter { it.n in cited }
+        return Answer(answer, shown, flag, chunks.filterIndexed { i, _ -> (i + 1) in cited }.map { it.id })
     }
+
+    /** Passage numbers the answer actually references, e.g. "[2]" -> 2. */
+    private fun citedNumbers(answer: String): Set<Int> =
+        Regex("\\[(\\d+)\\]").findAll(answer).mapNotNull { it.groupValues[1].toIntOrNull() }.toSet()
 }
