@@ -21,11 +21,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import compose.icons.FeatherIcons
+import compose.icons.feathericons.AlertTriangle
 import compose.icons.feathericons.ArrowLeft
 import compose.icons.feathericons.Maximize2
 import compose.icons.feathericons.X
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -161,6 +163,30 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
                     else tr("Find nearest safe shelter", "নিকটতম নিরাপদ আশ্রয় খুঁজুন"))
             }
 
+            if (ui.detailed) {
+                Spacer(Modifier.height(12.dp))
+                Card(
+                    Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                ) {
+                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
+                        Icon(FeatherIcons.AlertTriangle, null,
+                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            tr("The flood zone below is a sample scenario for practicing routes — " +
+                                "not live flood data. The route avoids that sample zone, not confirmed " +
+                                "real floodwater. Check local conditions before you travel.",
+                                "নিচের বন্যা এলাকা পথ অনুশীলনের জন্য একটি নমুনা দৃশ্য — লাইভ বন্যা তথ্য নয়। " +
+                                    "পথটি সেই নমুনা এলাকা এড়ায়, প্রকৃত বন্যার পানি নিশ্চিত নয়। যাত্রার আগে স্থানীয় " +
+                                    "পরিস্থিতি যাচাই করুন।"),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer)
+                    }
+                }
+            }
+
             // ---- mini map — static preview; tap opens a full-screen zoomable map ---- //
             Spacer(Modifier.height(12.dp))
             Card(Modifier.fillMaxWidth()) {
@@ -188,8 +214,7 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
             MapLegend(ui.detailed)
             if (ui.detailed) {
                 Text(
-                    tr("Roads: © OpenStreetMap contributors. The flood zone is an illustrative scenario, not live data.",
-                        "রাস্তা: © OpenStreetMap contributors। বন্যা এলাকা একটি উদাহরণমূলক দৃশ্য, লাইভ তথ্য নয়।"),
+                    tr("Roads: © OpenStreetMap contributors.", "রাস্তা: © OpenStreetMap contributors।"),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 2.dp))
@@ -209,12 +234,12 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
                             style = MaterialTheme.typography.bodyMedium)
                         Text(
                             if (r.crossesFlood)
-                                tr("⚠ No fully dry route — this path crosses floodwater.",
-                                    "⚠ সম্পূর্ণ শুকনো পথ নেই — এই পথ বন্যার পানি পার হয়।")
-                            else tr("✓ Route avoids flooded roads", "✓ পথটি বন্যা কবলিত রাস্তা এড়ায়") +
+                                tr("⚠ No route avoiding the sample flood zone — this path crosses it.",
+                                    "⚠ নমুনা বন্যা এলাকা এড়ানো কোনো পথ নেই — এই পথ সেটি পার হয়।")
+                            else tr("✓ Route avoids the sample flood zone", "✓ পথটি নমুনা বন্যা এলাকা এড়ায়") +
                                 if (ui.naiveCrossesFlood)
-                                    tr(" (the direct line would have crossed flooding).",
-                                        " (সরাসরি পথ বন্যা পার হতো)।") else ".",
+                                    tr(" (the direct line would have crossed it).",
+                                        " (সরাসরি পথ সেটি পার হতো)।") else ".",
                             style = MaterialTheme.typography.bodySmall,
                             color = if (r.crossesFlood) MaterialTheme.colorScheme.error
                             else MaterialTheme.colorScheme.primary)
@@ -354,7 +379,7 @@ private fun MapLegend(detailed: Boolean) {
                 Spacer(Modifier.width(14.dp))
                 LegendSwatch(FLOOD)
                 Spacer(Modifier.width(4.dp))
-                Text(tr("flood zone", "বন্যা এলাকা"), style = MaterialTheme.typography.labelSmall)
+                Text(tr("sample flood zone", "নমুনা বন্যা এলাকা"), style = MaterialTheme.typography.labelSmall)
             } else {
                 LegendLine(ROUTE, dashed = true)
                 Spacer(Modifier.width(4.dp))

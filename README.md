@@ -20,9 +20,9 @@ Verified end-to-end on real Android phones (Pixel 10a, Samsung Galaxy S21 FE), f
 | --- | --- |
 | 🚑 **Rescue Triage** | Type or **photograph** an SOS → Gemma returns **structured-JSON** priority + risk signals + rationale, ranked into a queue (deterministic rule fallback if the model is off). Captures real GPS. |
 | 🩹 **First Aid** | **Grounded, cited** steps from offline WHO/IFRC/Red Cross packs (RAG). Answers in the app language, life-threat red-flag banner, and citations that show **only the sources actually used**. |
-| 🗺️ **Safe Shelter & Route** | Uses your **real GPS** anywhere in Bangladesh. In a detailed region it draws a **flood-avoiding walking route on real OpenStreetMap streets**; elsewhere it finds the nearest of **9,500+ real schools/colleges** (the buildings used as flood shelters) + safe-direction guidance. |
-| 📋 **Coordinator Summary** | Aggregates the **real** reports on the device (from Triage + Mesh) — counts computed in code, Gemma writes the briefing. Never invented numbers. |
-| 📻 **Mesh SOS** | Ed25519-signed SOS **phone-to-phone** over Bluetooth/Wi-Fi (Nearby Connections), multi-hop relay, verify-before-trust. Works with no internet. |
+| 🗺️ **Safe Shelter & Route** | Uses your **real GPS** anywhere in Bangladesh. In a detailed region it draws a walking route on **real OpenStreetMap streets** that avoids a sample flood scenario (clearly labelled as such, not live data); elsewhere it finds the nearest of **9,500+ real schools/colleges** (the buildings used as flood shelters) + safe-direction guidance. |
+| 📋 **Coordinator Summary** | Aggregates the **real, verified** reports on the device (from Triage + Mesh) — counts computed in code, Gemma writes the briefing. Never invented numbers. Mesh reports that fail signature verification are quarantined and excluded, with a visible count if any exist. |
+| 📻 **Mesh SOS** | Real **Ed25519**-signed SOS **phone-to-phone** over Bluetooth/Wi-Fi (Nearby Connections), multi-hop relay, verify-before-trust — envelopes that fail verification are quarantined, never merged into the trusted report set. Works with no internet. |
 | 💬 **AI Assistant** | On-device flood-safety & first-aid chat. |
 | 🌐 **Full Bangla mode** | One toggle switches the **entire UI and every Gemma answer** between English and বাংলা. |
 | 🧭 **Flood drill** | A guided walkthrough that seeds sample reports and hands you through each tool, so you can practise before a real emergency. |
@@ -53,6 +53,19 @@ The hard part of "AI for disasters" is that the model has to run **on a phone, o
   `maxSdkVersion` cap on the location permission and missing runtime grants blocked discovery. →
   Removed the cap, requested COARSE/FINE + Bluetooth/Nearby-Wi-Fi at runtime, and ensured location
   services are on. Signed SOS then delivered phone-to-phone with multi-hop relay.
+- **The signer was a SHA-256 hash, not a real signature — and a downgrade attack could bypass even
+  that.** The mesh envelope's `Signer` was initially a `DevSigner` stand-in
+  (`SHA256(nodeId | data)`) meant only for tests: it detects tampering but proves no identity, since
+  anyone can compute the same hash for any claimed sender. Swapping in a real asymmetric
+  **Ed25519** signer (BouncyCastle, persisted per-device keypair) closed that — but on review, a
+  second issue surfaced: the receive path called the envelope's generic `verify()`, which honors
+  whatever signing scheme the *sender* claims, so an attacker could still forge a "verified"
+  envelope just by declaring the old `dev-sha256` scheme. → Added an explicit
+  `isProductionTrusted()` gate that only accepts `scheme == "ed25519"`, with a unit test
+  (`productionTrustRejectsSchemeDowngrade`) proving the downgrade path is rejected. Envelopes that
+  fail this check are quarantined (`SosRepository.quarantine`), never merged into the trusted
+  dataset the Coordinator Summary reads from. Verified end-to-end on two physical phones (Pixel
+  10a ↔ Samsung Galaxy S21 FE) over real Nearby Connections — not just unit tests.
 
 ### Trustworthy First Aid (RAG)
 - **Retrieval was too shallow.** With `k=2`, a "not breathing" query pulled the drowning + recovery
