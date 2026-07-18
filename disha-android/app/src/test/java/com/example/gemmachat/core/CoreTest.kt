@@ -31,6 +31,13 @@ class CoreTest {
         assertTrue("garbage -> no JSON", Triage.extractJson("totally not json") == null)
     }
 
+    @Test fun criticalPriorityAlwaysForcesHumanReview() {
+        val raw = """{"priority":"critical","urgency_score":0.9,"risk_signals":["trapped"],
+            "needs_human_review":false,"rationale":"x","recommended_action":"y"}"""
+        val r = Triage.fromRawOrFallback(SosReport(text = "trapped on roof"), raw, "test-model")
+        assertTrue("model's needs_human_review=false is overridden for critical", r.needsHumanReview)
+    }
+
     @Test fun triageFallbackOnBadModel() {
         val bad = object : LlmEngine {
             override val modelName = "bad"
@@ -103,6 +110,20 @@ class CoreTest {
         assertFalse("safe route avoids flood", route.crossesFlood)
         assertTrue("route has waypoints", route.polyline.size > 2)
         assertTrue("b3 is inside flood", Gis.pointInFlood(22.345, 91.820, flood))
+    }
+
+    @Test fun safeRouteHandlesEmptyGraphAndFarSnaps() {
+        val flood = demoFlood()
+        val empty = Gis.PedGraph(emptyMap(), emptyList())
+        val onEmpty = Gis.safeRoute(22.330, 91.820, 22.360, 91.820, empty, flood)
+        assertFalse("empty graph falls back to a naive straight-line route", onEmpty.routable)
+        assertEquals("naive route is just the two endpoints", 2, onEmpty.polyline.size)
+
+        // A request point far outside this graph's coverage must not silently snap to whatever
+        // node happens to be nearest, however far away.
+        val graph = demoGraph()
+        val farAway = Gis.safeRoute(0.0, 0.0, 22.360, 91.820, graph, flood)
+        assertFalse("far-outside-coverage point falls back to naive route", farAway.routable)
     }
 
     @Test fun toolDispatch() {

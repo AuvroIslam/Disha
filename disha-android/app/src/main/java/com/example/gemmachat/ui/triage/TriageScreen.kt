@@ -9,8 +9,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.ArrowLeft
 import compose.icons.feathericons.Camera
@@ -84,7 +84,7 @@ fun TriageScreen(viewModel: TriageViewModel, onBack: () -> Unit) {
         },
     ) { pad ->
         Column(
-            Modifier.padding(pad).padding(16.dp).fillMaxSize(),
+            Modifier.padding(pad).padding(16.dp).fillMaxSize().verticalScroll(rememberScrollState()),
         ) {
             HeroBanner(R.drawable.hero_triage,
                 title = tr("Rescue Triage", "উদ্ধার ট্রায়াজ"),
@@ -190,8 +190,8 @@ fun TriageScreen(viewModel: TriageViewModel, onBack: () -> Unit) {
                 fontWeight = FontWeight.Bold,
             )
             Spacer(Modifier.height(8.dp))
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(ui.queue) { item -> TriageCard(item) }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ui.queue.forEach { item -> TriageCard(item) }
             }
         }
     }

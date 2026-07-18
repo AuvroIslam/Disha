@@ -107,12 +107,16 @@ object Triage {
         val obj = extractJson(raw)
         val (ok, _) = validateTriage(obj)
         if (!ok || obj == null) return fallbackTriage(sos)
+        val priority = obj.get("priority").asString
         return TriageResult(
             msgId = sos.msgId,
-            priority = obj.get("priority").asString,
+            priority = priority,
             urgencyScore = obj.get("urgency_score").asDouble,
             riskSignals = obj.getAsJsonArray("risk_signals").map { it.asString },
-            needsHumanReview = obj.get("needs_human_review").asBoolean,
+            // A critical/high case must always be flagged for human review — never trust the
+            // model to opt out of that safety net, even if its own JSON says otherwise.
+            needsHumanReview = obj.get("needs_human_review").asBoolean ||
+                priority == "critical" || priority == "high",
             rationale = obj.get("rationale").asString,
             recommendedAction = obj.get("recommended_action").asString,
             model = modelName, producedBy = "gemma",

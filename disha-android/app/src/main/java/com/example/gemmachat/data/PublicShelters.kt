@@ -28,15 +28,17 @@ object PublicShelters {
 
     fun all(ctx: Context): List<PublicShelter> = cache ?: synchronized(this) {
         cache ?: run {
-            val txt = ctx.assets.open("bd_shelters.json").bufferedReader().use { it.readText() }
-            val list = JsonParser.parseString(txt).asJsonArray.map {
-                val o = it.asJsonObject
-                PublicShelter(
-                    name = o.get("n").asString, type = o.get("t").asString,
-                    district = o.get("d").asString, upazila = o.get("u").asString,
-                    lat = o.get("la").asDouble, lon = o.get("lo").asDouble,
-                )
-            }
+            val list = runCatching {
+                val txt = ctx.assets.open("bd_shelters.json").bufferedReader().use { it.readText() }
+                JsonParser.parseString(txt).asJsonArray.map {
+                    val o = it.asJsonObject
+                    PublicShelter(
+                        name = o.get("n").asString, type = o.get("t").asString,
+                        district = o.get("d").asString, upazila = o.get("u").asString,
+                        lat = o.get("la").asDouble, lon = o.get("lo").asDouble,
+                    )
+                }
+            }.getOrDefault(emptyList())
             cache = list
             list
         }

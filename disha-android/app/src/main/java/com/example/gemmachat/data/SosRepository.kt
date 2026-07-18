@@ -23,6 +23,11 @@ data class SosEntry(
  * Mesh envelopes that fail signature verification never land in [entries] — a forged or corrupted
  * report must not be able to distort rescue priority. They go to [quarantine] instead, visible to
  * an operator but excluded from every aggregate count and from the coordinator briefing.
+ *
+ * The onboarding flood-drill seeds sample entries (source == "drill") so first-time screens have
+ * something to show. Those must never linger into a real emergency: the moment any genuine report
+ * arrives, [add] purges leftover drill entries first, so a real briefing is never mixed with
+ * practice data.
  */
 class SosRepository {
 
@@ -35,7 +40,9 @@ class SosRepository {
     private var lastBriefedCount = 0
 
     fun add(entry: SosEntry) {
-        _entries.value = _entries.value + entry
+        val base = if (entry.source != "drill") _entries.value.filter { it.source != "drill" }
+        else _entries.value
+        _entries.value = base + entry
     }
 
     /** Holds a report that failed mesh signature verification — kept for review, not trusted. */

@@ -16,23 +16,35 @@ data class District(val name: String, val bn: String, val lat: Double, val lon: 
  */
 object BdGeo {
 
+    // Bangladesh's district centroids are all well within this radius of any point inside the
+    // country; a "nearest" fix farther than this is almost certainly a bad GPS reading or a
+    // location outside Bangladesh, and must not be silently labelled as a specific district.
+    private const val MAX_DISTRICT_DISTANCE_M = 150_000.0
+
     @Volatile private var cache: List<District>? = null
 
     fun districts(ctx: Context): List<District> = cache ?: synchronized(this) {
         cache ?: run {
-            val txt = ctx.assets.open("bd_districts.json").bufferedReader().use { it.readText() }
-            val list = JsonParser.parseString(txt).asJsonArray.map {
-                val o = it.asJsonObject
-                District(o.get("name").asString, o.get("bn").asString,
-                    o.get("lat").asDouble, o.get("lon").asDouble)
-            }
+            val list = runCatching {
+                val txt = ctx.assets.open("bd_districts.json").bufferedReader().use { it.readText() }
+                JsonParser.parseString(txt).asJsonArray.map {
+                    val o = it.asJsonObject
+                    District(o.get("name").asString, o.get("bn").asString,
+                        o.get("lat").asDouble, o.get("lon").asDouble)
+                }
+            }.getOrDefault(emptyList())
             cache = list
             list
         }
     }
 
-    fun nearestDistrict(ctx: Context, lat: Double, lon: Double): District =
-        districts(ctx).minByOrNull { Gis.haversineM(lat, lon, it.lat, it.lon) } ?: districts(ctx).first()
+    fun nearestDistrict(ctx: Context, lat: Double, lon: Double): District {
+        val nearest = districts(ctx).minByOrNull { Gis.haversineM(lat, lon, it.lat, it.lon) }
+            ?: return District("Bangladesh", "বাংলাদেশ", lat, lon)
+        val dist = Gis.haversineM(lat, lon, nearest.lat, nearest.lon)
+        return if (dist <= MAX_DISTRICT_DISTANCE_M) nearest
+        else District("Outside Bangladesh", "বাংলাদেশের বাইরে", lat, lon)
+    }
 
     /** Nearest detailed region pack and the straight-line distance (metres) to its centre. */
     fun nearestPack(lat: Double, lon: Double): Pair<RegionPack, Double> =

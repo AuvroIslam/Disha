@@ -63,8 +63,10 @@ object Gis {
 
     // ---- Pedestrian graph + Dijkstra -------------------------------------- #
     class PedGraph(val nodes: Map<String, DoubleArray>, val edges: List<Pair<String, String>>) {
-        fun nearestNode(lat: Double, lon: Double): String =
-            nodes.minByOrNull { haversineM(lat, lon, it.value[0], it.value[1]) }!!.key
+        /** Nearest node id + snap distance in metres, or null if the graph has no nodes at all. */
+        fun nearestNode(lat: Double, lon: Double): Pair<String, Double>? =
+            nodes.minByOrNull { haversineM(lat, lon, it.value[0], it.value[1]) }
+                ?.let { it.key to haversineM(lat, lon, it.value[0], it.value[1]) }
 
         fun adjacency(floodPolys: List<List<DoubleArray>>?): Map<String, MutableList<Pair<String, Double>>> {
             val adj = nodes.keys.associateWith { mutableListOf<Pair<String, Double>>() }
@@ -142,21 +144,36 @@ object Gis {
     data class Route(val polyline: List<DoubleArray>, val distM: Int,
                      val crossesFlood: Boolean, val routable: Boolean)
 
+    // Beyond this snap distance, the request point is outside the detailed pack's road network
+    // entirely (wrong pack, GPS drift, or a bordering district) — a graph route through whatever
+    // node happens to be "nearest" would be a confidently-wrong path, not a real one.
+    private const val MAX_SNAP_DISTANCE_M = 5_000.0
+
+    private fun naiveRoute(
+        fromLat: Double, fromLon: Double, toLat: Double, toLon: Double,
+        floodPolys: List<List<DoubleArray>>,
+    ): Route {
+        val crosses = segmentCrossesFlood(
+            doubleArrayOf(fromLat, fromLon), doubleArrayOf(toLat, toLon), floodPolys)
+        return Route(
+            listOf(doubleArrayOf(fromLat, fromLon), doubleArrayOf(toLat, toLon)),
+            haversineM(fromLat, fromLon, toLat, toLon).toInt(), crosses, false)
+    }
+
     fun safeRoute(
         fromLat: Double, fromLon: Double, toLat: Double, toLon: Double,
         graph: PedGraph, floodPolys: List<List<DoubleArray>>,
     ): Route {
-        val adj = graph.adjacency(floodPolys)
-        val src = graph.nearestNode(fromLat, fromLon)
-        val dst = graph.nearestNode(toLat, toLon)
-        val (path, dist) = dijkstra(adj, src, dst)
-        if (path == null) {
-            val crosses = segmentCrossesFlood(
-                doubleArrayOf(fromLat, fromLon), doubleArrayOf(toLat, toLon), floodPolys)
-            return Route(
-                listOf(doubleArrayOf(fromLat, fromLon), doubleArrayOf(toLat, toLon)),
-                haversineM(fromLat, fromLon, toLat, toLon).toInt(), crosses, false)
+        val (srcNode, srcDist) = graph.nearestNode(fromLat, fromLon)
+            ?: return naiveRoute(fromLat, fromLon, toLat, toLon, floodPolys)
+        val (dstNode, dstDist) = graph.nearestNode(toLat, toLon)
+            ?: return naiveRoute(fromLat, fromLon, toLat, toLon, floodPolys)
+        if (srcDist > MAX_SNAP_DISTANCE_M || dstDist > MAX_SNAP_DISTANCE_M) {
+            return naiveRoute(fromLat, fromLon, toLat, toLon, floodPolys)
         }
+        val adj = graph.adjacency(floodPolys)
+        val (path, dist) = dijkstra(adj, srcNode, dstNode)
+        if (path == null) return naiveRoute(fromLat, fromLon, toLat, toLon, floodPolys)
         val poly = path.map { graph.nodes.getValue(it) }
         return Route(poly, dist.toInt(), false, true)
     }

@@ -116,6 +116,11 @@ class MeshManager(
         if (connected.isEmpty()) return
         val bytes = gson.toJson(envToMap(env)).toByteArray(Charsets.UTF_8)
         client.sendPayload(connected.toList(), Payload.fromBytes(bytes))
+            .addOnFailureListener {
+                // The sender must never believe an SOS went out when the transfer actually
+                // failed (peer walked out of range, radio dropped) — surface it immediately.
+                onStatus("⚠ SOS failed to send: ${it.message ?: "connection lost"}")
+            }
     }
 
     private fun envToMap(env: SignedEnvelope): Map<String, Any?> {

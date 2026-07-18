@@ -11,8 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.ArrowLeft
 import compose.icons.feathericons.Radio
@@ -80,7 +80,7 @@ fun MeshScreen(viewModel: MeshViewModel, onBack: () -> Unit) {
             )
         },
     ) { pad ->
-        Column(Modifier.padding(pad).padding(16.dp).fillMaxSize()) {
+        Column(Modifier.padding(pad).padding(16.dp).fillMaxSize().verticalScroll(rememberScrollState())) {
             if (!permState.allPermissionsGranted) {
                 Text(tr("Offline mesh needs Bluetooth, Nearby-Wi-Fi and location permissions to " +
                     "find nearby phones (no internet is used).",
@@ -137,8 +137,8 @@ fun MeshScreen(viewModel: MeshViewModel, onBack: () -> Unit) {
             Text("${tr("Messages", "বার্তা")} (${ui.messages.size})",
                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp))
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(ui.messages.reversed()) { m -> MeshRow(m) }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ui.messages.reversed().forEach { m -> MeshRow(m) }
             }
         }
     }

@@ -128,6 +128,7 @@ import com.example.gemmachat.ui.theme.BgMid
 import com.example.gemmachat.ui.theme.Divider
 import com.example.gemmachat.ui.theme.ErrorRed
 import com.example.gemmachat.ui.theme.GemmaChatGradientBackground
+import com.example.gemmachat.ui.i18n.tr
 import com.example.gemmachat.ui.theme.GeistMono
 import com.example.gemmachat.ui.theme.GlassBg
 import com.example.gemmachat.ui.theme.GlassBorder
@@ -252,7 +253,7 @@ fun ChatScreen(
             onDismissRequest = { viewModel.clearSendError() },
             title = { Text(stringResource(R.string.error)) },
             text = { Text(ui.sendError ?: "") },
-            confirmButton = { TextButton(onClick = { viewModel.clearSendError() }) { Text("OK") } },
+            confirmButton = { TextButton(onClick = { viewModel.clearSendError() }) { Text(tr("OK", "ঠিক আছে")) } },
             containerColor = BgCard,
             titleContentColor = TextPrimary,
             textContentColor = TextPrimary,
@@ -266,7 +267,7 @@ fun ChatScreen(
             text = { Text(stringResource(R.string.model_info_body)) },
             confirmButton = {
                 TextButton(onClick = { showModelInfo = false }) {
-                    Text("Close")
+                    Text(tr("Close", "বন্ধ করুন"))
                 }
             },
             containerColor = BgCard,
@@ -314,7 +315,7 @@ fun ChatScreen(
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { showAttachOptions = false }) {
-                    Text("Cancel")
+                    Text(tr("Cancel", "বাতিল"))
                 }
             },
             containerColor = BgCard,
@@ -418,9 +419,9 @@ fun ChatScreen(
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 GlowOrb(size = 72, animated = true)
                                 Spacer(Modifier.height(16.dp))
-                                Text("Loading Gemma 4…", color = TextPrimary, fontWeight = FontWeight.SemiBold)
+                                Text(tr("Loading Gemma 4…", "Gemma 4 লোড হচ্ছে…"), color = TextPrimary, fontWeight = FontWeight.SemiBold)
                                 Spacer(Modifier.height(6.dp))
-                                Text("Warming up the local model", color = TextSecondary, fontSize = 12.sp)
+                                Text(tr("Warming up the local model", "স্থানীয় মডেল প্রস্তুত হচ্ছে"), color = TextSecondary, fontSize = 12.sp)
                             }
                         }
                     }
@@ -431,13 +432,13 @@ fun ChatScreen(
                             verticalArrangement = Arrangement.Center,
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            Text("Couldn't load model", color = TextPrimary, fontWeight = FontWeight.Bold)
+                            Text(tr("Couldn't load model", "মডেল লোড করা যায়নি"), color = TextPrimary, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(8.dp))
                             Text(ui.engineError ?: "", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
                             Spacer(Modifier.height(20.dp))
-                            GlassButton("Retry") { viewModel.retryLoadEngine() }
+                            GlassButton(tr("Retry", "আবার চেষ্টা করুন")) { viewModel.retryLoadEngine() }
                             Spacer(Modifier.height(8.dp))
-                            GlassButton("Re-download") { onNeedModel() }
+                            GlassButton(tr("Re-download", "আবার ডাউনলোড করুন")) { onNeedModel() }
                         }
                     }
 
@@ -643,16 +644,16 @@ private fun SuggestedActionDialog(
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Suggested action") },
+        title = { Text(tr("Suggested action", "প্রস্তাবিত পদক্ষেপ")) },
         text = { Text(message) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("Open")
+                Text(tr("Open", "খুলুন"))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(tr("Cancel", "বাতিল"))
             }
         },
         containerColor = BgCard,
@@ -693,11 +694,11 @@ private fun SideDrawer(
         ) {
             Icon(Icons.Outlined.EditNote, contentDescription = null, tint = AccentViolet, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(10.dp))
-            Text("New chat", color = TextPrimary, fontWeight = FontWeight.Medium)
+            Text(tr("New chat", "নতুন চ্যাট"), color = TextPrimary, fontWeight = FontWeight.Medium)
         }
 
         Spacer(Modifier.height(20.dp))
-        Text("Recent", color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Text(tr("Recent", "সাম্প্রতিক"), color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(8.dp))
 
         LazyColumn(Modifier.weight(1f)) {
@@ -734,7 +735,7 @@ private fun SideDrawer(
         ) {
             Icon(Icons.Outlined.Settings, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(10.dp))
-            Text("Settings", color = TextSecondary)
+            Text(tr("Settings", "সেটিংস"), color = TextSecondary)
         }
     }
 }

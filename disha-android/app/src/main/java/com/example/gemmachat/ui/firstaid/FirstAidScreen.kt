@@ -125,7 +125,7 @@ fun FirstAidScreen(viewModel: FirstAidViewModel, onBack: () -> Unit) {
 
             ui.error?.let {
                 Spacer(Modifier.height(8.dp))
-                Text("Error: $it", color = MaterialTheme.colorScheme.error,
+                Text("${tr("Error", "সমস্যা")}: $it", color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall)
             }
 
