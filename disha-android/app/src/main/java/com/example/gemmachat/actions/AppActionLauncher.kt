@@ -3,6 +3,7 @@ package com.example.gemmachat.actions
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import java.net.URI
 import java.net.URLEncoder
 
 object AppActionLauncher {
@@ -19,12 +20,27 @@ object AppActionLauncher {
     private fun resolveIntent(context: Context, action: AssistantAction): Intent? {
         return when (action.type.lowercase()) {
             "open_app" -> resolveOpenAppIntent(context, action)
-            "open_url" -> action.uri?.let {
-                Intent(Intent.ACTION_VIEW, Uri.parse(it)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
+            "open_url" -> action.uri?.let { safeBrowse(it) }
             else -> null
         }
     }
+
+    /**
+     * The URI here comes from the model, so only real web links may be opened. Anything else —
+     * `javascript:`, `file:`, `content:`, `intent:`, custom app schemes — could exfiltrate data or
+     * trigger an unintended app, so it is rejected outright rather than handed to ACTION_VIEW.
+     */
+    fun safeWebUrl(raw: String): String? {
+        val trimmed = raw.trim()
+        // Parse with java.net.URI (not android.net.Uri) so this is unit-testable and fails closed:
+        // a string that doesn't parse as a proper URI is rejected rather than passed through.
+        val uri = runCatching { URI(trimmed) }.getOrNull() ?: return null
+        val scheme = uri.scheme?.lowercase()
+        return if ((scheme == "http" || scheme == "https") && !uri.host.isNullOrBlank()) trimmed
+        else null
+    }
+
+    private fun safeBrowse(raw: String): Intent? = safeWebUrl(raw)?.let { browse(it) }
 
     private fun resolveOpenAppIntent(context: Context, action: AssistantAction): Intent? {
         val appKey = action.app?.trim()?.lowercase().orEmpty()
@@ -60,7 +76,7 @@ object AppActionLauncher {
                     "https://www.google.com/maps/search/?api=1&query=${encode(action.query)}"
                 },
             )
-            "chrome", "browser" -> browse(action.uri ?: "https://www.google.com/")
+            "chrome", "browser" -> browse(action.uri?.let { safeWebUrl(it) } ?: "https://www.google.com/")
             else -> null
         }
     }

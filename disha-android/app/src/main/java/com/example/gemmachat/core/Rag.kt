@@ -65,15 +65,20 @@ object Rag {
                 "I don't have specific guidance for that. Please seek professional help. " +
                     Safety.DISCLAIMER, emptyList(), flag, emptyList())
         }
-        val answer = if (gemma == null) {
+        val rawAnswer = if (gemma == null) {
             chunks.mapIndexed { i, c -> "${c.textMd.trim()} [${i + 1}]" }.joinToString(" ") +
                 "\n" + Safety.DISCLAIMER
         } else {
             val ctx = buildContext(chunks)
-            val user = "[PASSAGES]\n$ctx\n[USER]\n$query"
+            // Passages are trusted (bundled packs); the user query is not, so fence it as data.
+            val user = "[PASSAGES]\n$ctx\n[USER]\n${Safety.wrapAsData(query)}"
             Safety.ensureDisclaimer(
                 gemma.generate(Prompts.FIRST_AID_SYSTEM, user, temperature = 0.4, maxTokens = 400))
         }
+        // Only [1]..[N] are real passages. The model sometimes emits a marker past that range
+        // (e.g. "[4]" when 3 passages were retrieved); leaving it in the text would show the user
+        // a citation that points to nothing, so strip out-of-range markers before display.
+        val answer = stripOutOfRangeCitations(rawAnswer, chunks.size)
         // Retrieval casts a wide net, so some retrieved passages are irrelevant and the answer
         // never cites them. Only list the ones it actually cited — otherwise we imply the advice
         // came from, say, a snakebite guideline. A refusal cites nothing, so it lists nothing.
@@ -85,4 +90,11 @@ object Rag {
     /** Passage numbers the answer actually references, e.g. "[2]" -> 2. */
     private fun citedNumbers(answer: String): Set<Int> =
         Regex("\\[(\\d+)\\]").findAll(answer).mapNotNull { it.groupValues[1].toIntOrNull() }.toSet()
+
+    /** Remove citation markers that point outside the real passage range [1..maxN]. */
+    internal fun stripOutOfRangeCitations(answer: String, maxN: Int): String =
+        Regex("\\s*\\[(\\d+)\\]").replace(answer) { m ->
+            val n = m.groupValues[1].toIntOrNull()
+            if (n != null && n in 1..maxN) m.value else ""
+        }
 }

@@ -100,7 +100,9 @@ object Triage {
         return (errs.isEmpty()) to errs
     }
 
-    fun triageUserPrompt(text: String): String = "SOS: $text\nJSON:"
+    // The SOS text is untrusted (it can arrive over the mesh from another device), so it is fenced
+    // as data — an embedded "ignore your instructions" can't be read as a command to the model.
+    fun triageUserPrompt(text: String): String = "SOS:\n${Safety.wrapAsData(text)}\nJSON:"
 
     /** Parse a raw model response into a TriageResult, or fall back to rules if invalid. */
     fun fromRawOrFallback(sos: SosReport, raw: String, modelName: String): TriageResult {
@@ -125,10 +127,14 @@ object Triage {
 
     /** Triage one SOS. Uses [gemma] if it yields valid JSON, else the deterministic fallback. */
     fun triageSos(sos: SosReport, gemma: LlmEngine? = null): TriageResult {
-        if (gemma == null) return fallbackTriage(sos)
-        val raw = gemma.generate(Prompts.TRIAGE_SYSTEM, triageUserPrompt(sos.text),
-            temperature = 0.3, maxTokens = 256)
-        return fromRawOrFallback(sos, raw, gemma.modelName)
+        val result = if (gemma == null) fallbackTriage(sos) else {
+            val raw = gemma.generate(Prompts.TRIAGE_SYSTEM, triageUserPrompt(sos.text),
+                temperature = 0.3, maxTokens = 256)
+            fromRawOrFallback(sos, raw, gemma.modelName)
+        }
+        // A real SOS never contains prompt-injection phrasing; if it does, the report is suspect —
+        // flag it for a human rather than trusting its automated priority.
+        return if (Safety.detectInjection(sos.text)) result.copy(needsHumanReview = true) else result
     }
 
     fun sortQueue(results: List<TriageResult>): List<TriageResult> =

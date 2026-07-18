@@ -631,29 +631,41 @@ private fun SuggestedActionDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
-    val target = action.label ?: action.app?.replaceFirstChar { it.titlecase() } ?: action.uri ?: "external app"
     val message = when (action.type.lowercase()) {
-        "open_url" -> "Open this link in another app?\n$target"
-        "open_app" -> {
-            val querySuffix = action.query?.takeIf { it.isNotBlank() }?.let {
-                "\nRequested task: $it"
-            }.orEmpty()
-            "Open $target from Gemma?$querySuffix"
+        // Show the REAL destination URL, never the model-supplied label — a friendly label must
+        // not be able to disguise where a link actually goes. Unopenable/non-web links say so.
+        "open_url" -> {
+            val safe = action.uri?.let { AppActionLauncher.safeWebUrl(it) }
+            if (safe != null) tr("Open this link in your browser?\n", "এই লিঙ্কটি ব্রাউজারে খুলবেন?\n") + safe
+            else tr("This link can't be opened safely and was blocked.",
+                "এই লিঙ্কটি নিরাপদে খোলা যায় না, তাই বন্ধ করা হয়েছে।")
         }
-        else -> "Open $target from Gemma?"
+        "open_app" -> {
+            val target = action.app?.replaceFirstChar { it.titlecase() } ?: "external app"
+            val querySuffix = action.query?.takeIf { it.isNotBlank() }?.let {
+                "\n" + tr("Requested task: ", "অনুরোধকৃত কাজ: ") + it
+            }.orEmpty()
+            tr("Open $target from Gemma?", "Gemma থেকে $target খুলবেন?") + querySuffix
+        }
+        else -> tr("Open from Gemma?", "Gemma থেকে খুলবেন?")
     }
+    // If an open_url link failed validation there is nothing safe to launch — hide the Open button.
+    val blockedUrl = action.type.lowercase() == "open_url" &&
+        action.uri?.let { AppActionLauncher.safeWebUrl(it) } == null
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(tr("Suggested action", "প্রস্তাবিত পদক্ষেপ")) },
         text = { Text(message) },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(tr("Open", "খুলুন"))
+            if (!blockedUrl) {
+                TextButton(onClick = onConfirm) {
+                    Text(tr("Open", "খুলুন"))
+                }
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(tr("Cancel", "বাতিল"))
+                Text(if (blockedUrl) tr("Close", "বন্ধ করুন") else tr("Cancel", "বাতিল"))
             }
         },
         containerColor = BgCard,
