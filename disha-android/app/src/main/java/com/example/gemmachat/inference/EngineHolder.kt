@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import java.io.File
 
 class EngineHolder(private val context: Context) {
@@ -25,6 +26,12 @@ class EngineHolder(private val context: Context) {
     private val mutex = Mutex()
     private var engine: Engine? = null
     private var conversation: Conversation? = null
+
+    companion object {
+        // A single stuck one-shot inference must not hold the engine lock forever and freeze every
+        // other screen. This ceiling is generous for a long first-aid answer on CPU yet bounded.
+        private const val TASK_TIMEOUT_MS = 90_000L
+    }
 
     /** When true, every Gemma response is instructed to be in Bangla. Set from app language. */
     @Volatile
@@ -121,16 +128,18 @@ class EngineHolder(private val context: Context) {
             )
             val conv = eng.createConversation(cfg)
             try {
-                val sb = StringBuilder()
-                val hasImage = imagePath != null && File(imagePath).exists()
-                val flow = if (hasImage) {
-                    conv.sendMessageAsync(
-                        Contents.of(Content.Text(user), Content.ImageFile(imagePath!!)), emptyMap())
-                } else {
-                    conv.sendMessageAsync(user, emptyMap())
+                withTimeout(TASK_TIMEOUT_MS) {
+                    val sb = StringBuilder()
+                    val hasImage = imagePath != null && File(imagePath).exists()
+                    val flow = if (hasImage) {
+                        conv.sendMessageAsync(
+                            Contents.of(Content.Text(user), Content.ImageFile(imagePath!!)), emptyMap())
+                    } else {
+                        conv.sendMessageAsync(user, emptyMap())
+                    }
+                    flow.collect { msg -> sb.append(textFromMessage(msg)) }
+                    sb.toString()
                 }
-                flow.collect { msg -> sb.append(textFromMessage(msg)) }
-                sb.toString()
             } finally {
                 try {
                     conv.close()
@@ -159,9 +168,11 @@ class EngineHolder(private val context: Context) {
             )
             val conv = eng.createConversation(cfg)
             try {
-                val sb = StringBuilder()
-                conv.sendMessageAsync(text, emptyMap()).collect { msg -> sb.append(textFromMessage(msg)) }
-                sb.toString().trim()
+                withTimeout(TASK_TIMEOUT_MS) {
+                    val sb = StringBuilder()
+                    conv.sendMessageAsync(text, emptyMap()).collect { msg -> sb.append(textFromMessage(msg)) }
+                    sb.toString().trim()
+                }
             } finally {
                 try {
                     conv.close()
@@ -228,37 +239,33 @@ class EngineHolder(private val context: Context) {
         thinking: Boolean,
         concise: Boolean,
     ): Flow<String> {
-        val conv = synchronized(this) { conversation }
-            ?: throw IllegalStateException("Conversation not ready")
         val extraContext: Map<String, Any> = if (thinking) {
             mapOf("enable_thinking" to true)
         } else {
             emptyMap()
         }
-
         val text = styledPrompt(userText.trim(), concise)
         val hasMedia =
             (imagePath != null && File(imagePath).exists()) ||
                 (audioPath != null && File(audioPath).exists())
 
-        val upstream: Flow<Message> = if (!hasMedia) {
-            conv.sendMessageAsync(text, extraContext)
-        } else {
-            val parts = mutableListOf<Content>()
-            if (text.isNotEmpty()) parts.add(Content.Text(text))
-            imagePath?.let { p ->
-                if (File(p).exists()) parts.add(Content.ImageFile(p))
-            }
-            audioPath?.let { p ->
-                if (File(p).exists()) parts.add(Content.AudioFile(p))
-            }
-            require(parts.isNotEmpty()) { "Nothing to send" }
-            conv.sendMessageAsync(Contents.of(parts), extraContext)
-        }
-
         return flow {
-            upstream.collect { msg ->
-                emit(textFromMessage(msg))
+            // Hold the engine lock for the whole stream: a background task call (triage, first-aid,
+            // summary, title) also takes this lock to close/recreate the conversation, so without it
+            // one of those could free this very conversation out from under an active chat response.
+            mutex.withLock {
+                val conv = conversation ?: throw IllegalStateException("Conversation not ready")
+                val upstream: Flow<Message> = if (!hasMedia) {
+                    conv.sendMessageAsync(text, extraContext)
+                } else {
+                    val parts = mutableListOf<Content>()
+                    if (text.isNotEmpty()) parts.add(Content.Text(text))
+                    imagePath?.let { p -> if (File(p).exists()) parts.add(Content.ImageFile(p)) }
+                    audioPath?.let { p -> if (File(p).exists()) parts.add(Content.AudioFile(p)) }
+                    require(parts.isNotEmpty()) { "Nothing to send" }
+                    conv.sendMessageAsync(Contents.of(parts), extraContext)
+                }
+                upstream.collect { msg -> emit(textFromMessage(msg)) }
             }
         }.flowOn(Dispatchers.IO)
     }
@@ -307,18 +314,20 @@ class EngineHolder(private val context: Context) {
                 )
                 val conv = eng.createConversation(cfg)
                 try {
-                    val prompt = buildString {
-                        append("Summarize this conversation into one short title.\n")
-                        append("User: ")
-                        append(userPrompt.take(500))
-                        append("\nAssistant: ")
-                        append(assistantReply.take(2000))
+                    withTimeout(TASK_TIMEOUT_MS) {
+                        val prompt = buildString {
+                            append("Summarize this conversation into one short title.\n")
+                            append("User: ")
+                            append(userPrompt.take(500))
+                            append("\nAssistant: ")
+                            append(assistantReply.take(2000))
+                        }
+                        val sb = StringBuilder()
+                        conv.sendMessageAsync(prompt, emptyMap()).collect { msg ->
+                            sb.append(textFromMessage(msg))
+                        }
+                        cleanTitle(sb.toString())
                     }
-                    val sb = StringBuilder()
-                    conv.sendMessageAsync(prompt, emptyMap()).collect { msg ->
-                        sb.append(textFromMessage(msg))
-                    }
-                    cleanTitle(sb.toString())
                 } finally {
                     try {
                         conv.close()

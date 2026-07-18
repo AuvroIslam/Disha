@@ -137,6 +137,7 @@ import com.example.gemmachat.ui.theme.TextPrimary
 import com.example.gemmachat.ui.theme.TextSecondary
 import com.example.gemmachat.ui.theme.UserBubble
 import com.example.gemmachat.util.copyUriToCacheFile
+import com.example.gemmachat.util.decodeDownscaledToCache
 import com.example.gemmachat.util.saveBitmapToCacheFile
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
@@ -189,7 +190,9 @@ fun ChatScreen(
     ) { uri: Uri? ->
         if (uri != null) {
             runCatching {
-                pendingImagePath = copyUriToCacheFile(context, uri).absolutePath
+                // Downscale before it reaches Gemma — a full-res gallery photo can OOM the model.
+                pendingImagePath = (decodeDownscaledToCache(context, uri, prefix = "chat")
+                    ?: copyUriToCacheFile(context, uri)).absolutePath
                 modeHint = context.getString(R.string.attachment_ready)
             }.onFailure {
                 pendingImagePath = null

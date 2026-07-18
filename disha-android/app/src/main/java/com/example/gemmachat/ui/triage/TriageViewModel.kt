@@ -12,12 +12,12 @@ import com.example.gemmachat.core.TriageResult
 import com.example.gemmachat.data.SosEntry
 import com.example.gemmachat.data.download.HfDownloadRepository
 import com.example.gemmachat.inference.GemmaLlmEngine
+import com.example.gemmachat.util.decodeDownscaledToCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 
 data class TriagedItem(val text: String, val result: TriageResult)
 
@@ -53,10 +53,9 @@ class TriageViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val ctx = getApplication<Application>()
-                val file = File(ctx.cacheDir, "triage_${System.currentTimeMillis()}.jpg")
-                ctx.contentResolver.openInputStream(uri)?.use { input ->
-                    file.outputStream().use { input.copyTo(it) }
-                }
+                // Downscale before it ever reaches Gemma — a raw camera photo can OOM the model.
+                val file = decodeDownscaledToCache(ctx, uri, prefix = "triage")
+                    ?: throw IllegalStateException("could not read image")
                 _ui.value = _ui.value.copy(imagePath = file.absolutePath)
             } catch (e: Exception) {
                 _ui.value = _ui.value.copy(error = "Image: ${e.message}")

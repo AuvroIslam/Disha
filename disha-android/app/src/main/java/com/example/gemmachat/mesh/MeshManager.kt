@@ -34,11 +34,22 @@ class MeshManager(
     private val signer = MeshIdentity.loadOrCreateSigner(context, localName)
     private val gson = Gson()
     private var clock = 0
-    private val seen = mutableSetOf<String>()
+    // Bounded dedup cache: a long relay session could otherwise grow this set without limit.
+    // LRU-evicting the oldest ids past the cap keeps memory flat; re-seeing an id older than the
+    // cap at worst re-delivers one message, which the UI already tolerates.
+    private val seen: MutableSet<String> = java.util.Collections.synchronizedSet(
+        java.util.Collections.newSetFromMap(
+            object : LinkedHashMap<String, Boolean>(256, 0.75f, false) {
+                override fun removeEldestEntry(eldest: Map.Entry<String, Boolean>): Boolean =
+                    size > MAX_SEEN
+            },
+        ),
+    )
     private val connected = mutableSetOf<String>()
 
     companion object {
         const val SERVICE_ID = "com.example.gemmachat.DISHA_MESH"
+        private const val MAX_SEEN = 2_000
     }
 
     private val payloadCallback = object : PayloadCallback() {
