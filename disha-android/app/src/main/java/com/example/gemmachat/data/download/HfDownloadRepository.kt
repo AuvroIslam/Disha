@@ -45,12 +45,15 @@ class HfDownloadRepository {
                 when (response.code) {
                     200 -> {
                         if (existing > 0) destFile.delete()
-                        streamToFile(body.contentLength(), body.byteStream(), destFile, 0L, onProgress)
+                        val total = body.contentLength()
+                        val written = streamToFile(total, body.byteStream(), destFile, 0L, onProgress)
+                        verifyComplete(written, total)
                     }
                     206 -> {
                         val contentRange = response.header("Content-Range")
                         val totalBytes = parseTotalFromContentRange(contentRange) ?: (existing + body.contentLength())
-                        streamToFile(totalBytes, body.byteStream(), destFile, existing, onProgress)
+                        val written = streamToFile(totalBytes, body.byteStream(), destFile, existing, onProgress)
+                        verifyComplete(written, totalBytes)
                     }
                     401, 403 -> return@withContext Result.failure(
                         IOException(
@@ -76,13 +79,14 @@ class HfDownloadRepository {
         return header.substring(slash + 1).toLongOrNull()
     }
 
+    /** Streams the body to disk and returns the total bytes now on disk (offset + newly written). */
     private fun streamToFile(
         totalKnown: Long,
         input: java.io.InputStream,
         destFile: File,
         initialOffset: Long,
         onProgress: (Long, Long) -> Unit,
-    ) {
+    ): Long {
         val buffer = ByteArray(8192)
         var written = initialOffset
         val out = if (initialOffset > 0) java.io.FileOutputStream(destFile, true) else java.io.FileOutputStream(destFile)
@@ -97,6 +101,19 @@ class HfDownloadRepository {
                     onProgress(written, total)
                 }
             }
+        }
+        return written
+    }
+
+    /**
+     * A dropped connection can end the stream early with no exception, leaving a truncated ~2.5 GB
+     * model that would then load as garbage. Reject a short file so the caller surfaces an error;
+     * the partial bytes stay on disk so a retry resumes via Range instead of restarting.
+     */
+    private fun verifyComplete(written: Long, expectedTotal: Long) {
+        if (expectedTotal > 0 && written != expectedTotal) {
+            throw IOException(
+                "Incomplete download: received $written of $expectedTotal bytes. Retry to resume.")
         }
     }
 

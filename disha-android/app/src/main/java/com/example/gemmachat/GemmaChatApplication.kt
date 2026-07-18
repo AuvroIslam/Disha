@@ -7,6 +7,7 @@ import com.example.gemmachat.data.SosRepository
 import com.example.gemmachat.data.download.HfDownloadRepository
 import com.example.gemmachat.inference.EngineHolder
 import com.example.gemmachat.location.LocationProvider
+import java.io.File
 
 class GemmaChatApplication : Application() {
 
@@ -29,7 +30,7 @@ class GemmaChatApplication : Application() {
         downloadRepository = HfDownloadRepository()
         engineHolder = EngineHolder(this)
         prefs = AppPrefs(this)
-        sosRepository = SosRepository()
+        sosRepository = SosRepository(File(filesDir, "sos_store.json"))
         locationProvider = LocationProvider(this)
     }
 }
