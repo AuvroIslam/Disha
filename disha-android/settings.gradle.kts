@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Gemma Chat"
+rootProject.name = "Disha"
 include(":app")

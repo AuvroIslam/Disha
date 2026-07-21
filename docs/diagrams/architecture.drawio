@@ -1,0 +1,99 @@
+<mxfile host="app.diagrams.net" agent="Disha" version="24.0.0">
+  <diagram name="System Architecture" id="disha-arch">
+    <mxGraphModel dx="1000" dy="700" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="720" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Outer "all offline" container -->
+        <mxCell id="wrap" value="One Android phone — 100% on-device · works in airplane mode · no server, no cloud" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;strokeColor=#8A8A8A;fillColor=none;verticalAlign=top;fontColor=#555555;fontSize=12;fontStyle=2;align=center;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="120" width="1020" height="560" as="geometry" />
+        </mxCell>
+
+        <!-- Title -->
+        <mxCell id="title" value="Disha — On-device Architecture (Gemma 4 is the reasoning core; everything else stays deterministic)" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=15;fontStyle=1;fontColor=#2A2140;" vertex="1" parent="1">
+          <mxGeometry x="60" y="30" width="980" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Inputs -->
+        <mxCell id="in1" value="📝 Text SOS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E7F0FE;strokeColor=#2E7DF5;fontColor=#0B2545;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="140" y="70" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="in2" value="📷 Photo (injury / scene)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E7F0FE;strokeColor=#2E7DF5;fontColor=#0B2545;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="450" y="70" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="in3" value="📍 GPS location" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E7F0FE;strokeColor=#2E7DF5;fontColor=#0B2545;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="760" y="70" width="200" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- UI band -->
+        <mxCell id="ui" value="Jetpack Compose UI&#10;Home · Emergency · Rescue Triage · First Aid · Safe Shelter &amp; Route · Coordinator Summary · Mesh SOS · AI Assistant  ·  one-tap বাংলা / English" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3EFFF;strokeColor=#7B5CF0;fontColor=#2A2140;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="150" width="960" height="56" as="geometry" />
+        </mxCell>
+
+        <!-- Gemma -->
+        <mxCell id="gemma" value="Gemma 4 E2B  —  LiteRT-LM, on-device (the ONLY LLM)&#10;reasons · selects tools · writes prose (BN/EN)  |  multimodal image triage · structured-JSON output · cross-language translation for retrieval" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7B5CF0;strokeColor=#5B3FD0;fontColor=#FFFFFF;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="240" width="960" height="66" as="geometry" />
+        </mxCell>
+
+        <!-- Core header -->
+        <mxCell id="corehdr" value="Deterministic core (Kotlin · unit-tested · never hallucinates a number)" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=12;fontStyle=1;fontColor=#5B3FD0;" vertex="1" parent="1">
+          <mxGeometry x="70" y="336" width="960" height="20" as="geometry" />
+        </mxCell>
+        <!-- Core boxes -->
+        <mxCell id="c1" value="Triage&#10;→ JSON + fallback" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEE9FC;strokeColor=#7B5CF0;fontColor=#2A2140;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="70" y="362" width="150" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c2" value="RAG retrieval (k=4)&#10;+ citations" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEE9FC;strokeColor=#7B5CF0;fontColor=#2A2140;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="232" y="362" width="150" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c3" value="GIS — Dijkstra&#10;flood-avoid routing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEE9FC;strokeColor=#7B5CF0;fontColor=#2A2140;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="394" y="362" width="150" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c4" value="Summary&#10;counts in code" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEE9FC;strokeColor=#7B5CF0;fontColor=#2A2140;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="556" y="362" width="150" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c5" value="Ed25519 mesh&#10;verify-before-trust" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEE9FC;strokeColor=#7B5CF0;fontColor=#2A2140;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="718" y="362" width="150" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c6" value="Safety guards&#10;+ human review" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEE9FC;strokeColor=#7B5CF0;fontColor=#2A2140;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="880" y="362" width="150" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Data header -->
+        <mxCell id="datahdr" value="Offline data packs (bundled app assets)" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=12;fontStyle=1;fontColor=#0E9D68;" vertex="1" parent="1">
+          <mxGeometry x="70" y="452" width="960" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="d1" value="OSM road graphs&#10;(3 detailed districts)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E9F8F0;strokeColor=#0E9D68;fontColor=#0B3D2A;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="70" y="478" width="182" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="d2" value="64 districts&#10;(gov.bd geocode)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E9F8F0;strokeColor=#0E9D68;fontColor=#0B3D2A;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="264" y="478" width="182" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="d3" value="9,525 shelters&#10;(HOT-OSM)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E9F8F0;strokeColor=#0E9D68;fontColor=#0B3D2A;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="458" y="478" width="182" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="d4" value="First-aid packs&#10;(WHO / IFRC / Red Cross)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E9F8F0;strokeColor=#0E9D68;fontColor=#0B3D2A;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="652" y="478" width="182" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="d5" value="Emergency numbers&#10;(999 · 1090 · 16111 …)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E9F8F0;strokeColor=#0E9D68;fontColor=#0B3D2A;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="846" y="478" width="182" height="56" as="geometry" />
+        </mxCell>
+
+        <!-- Shared services band -->
+        <mxCell id="shared" value="Shared services:  SosRepository (only signature-verified reports)   ·   FusedLocation (real GPS)   ·   Nearby Connections (Bluetooth / Wi-Fi transport for Mesh SOS)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF4E5;strokeColor=#F5822B;fontColor=#7A3E00;fontSize=11;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="70" y="560" width="960" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="ea" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#5B3FD0;" edge="1" parent="1" source="in1" target="ui"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eb" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#5B3FD0;" edge="1" parent="1" source="in2" target="ui"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ec" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#5B3FD0;" edge="1" parent="1" source="in3" target="ui"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ed" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#5B3FD0;strokeWidth=2;" edge="1" parent="1" source="ui" target="gemma"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ee" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;startArrow=block;strokeColor=#5B3FD0;strokeWidth=2;" edge="1" parent="1" source="gemma" target="corehdr"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ef" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#0E9D68;" edge="1" parent="1" source="c3" target="d1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eg" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#0E9D68;" edge="1" parent="1" source="c2" target="d4"><mxGeometry relative="1" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -26,6 +26,15 @@ class AppPrefs(context: Context) {
     private val _activeRegion = MutableStateFlow(sp.getString(KEY_ACTIVE, DEFAULT_REGION) ?: DEFAULT_REGION)
     val activeRegion: StateFlow<String> = _activeRegion.asStateFlow()
 
+    // First-run coaching balloon on Home — shown once, then dismissed for good.
+    private val _coachSeen = MutableStateFlow(sp.getBoolean(KEY_COACH_SEEN, false))
+    val coachSeen: StateFlow<Boolean> = _coachSeen.asStateFlow()
+
+    fun markCoachSeen() {
+        _coachSeen.value = true
+        sp.edit().putBoolean(KEY_COACH_SEEN, true).apply()
+    }
+
     fun setLanguage(lang: String) {
         _language.value = lang
         sp.edit().putString(KEY_LANG, lang).apply()
@@ -48,5 +57,6 @@ class AppPrefs(context: Context) {
         private const val KEY_LANG = "language"
         private const val KEY_INSTALLED = "installed_regions"
         private const val KEY_ACTIVE = "active_region"
+        private const val KEY_COACH_SEEN = "coach_seen"
     }
 }

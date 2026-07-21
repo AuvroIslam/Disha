@@ -1,72 +1,89 @@
-# Gemma Chat (Android)
+# Disha for Android
 
-Offline-first chat using **Gemma 4 E2B** in LiteRT-LM format (`gemma-4-E2B-it.litertlm`).
+**Disha** is an offline-first disaster-response companion for Bangladesh. It runs
+**Gemma 4 E2B** locally through LiteRT-LM and is the Android product for this repository.
+Gemma 4 is the only LLM used by the app.
 
-Inspired in part by [Google AI Edge Gallery](https://github.com/google-ai-edge/gallery), especially its approach to on-device AI experiences and direct APK distribution for users outside Play Store access.
+## What It Does
 
-## Download APK
+- **Rescue triage:** Gemma produces structured urgency assessments for SOS reports, with a
+	deterministic fallback when output is invalid or the model is unavailable.
+- **First aid:** Gemma writes grounded, cited guidance from the bundled WHO, IFRC, and Red Cross
+	knowledge packs. Life-threatening queries show a red-flag warning and every response includes
+	a medical disclaimer.
+- **Safe shelter:** Gemma selects a GIS tool; deterministic code finds shelters, routes around
+	illustrative flood zones, and locates nearby facilities using offline data.
+- **Coordinator summary:** The app counts trusted reports deterministically, then Gemma turns
+	those facts into a concise operational briefing.
+- **Mesh SOS:** Devices exchange Ed25519-signed SOS reports over Nearby Connections. Reports that
+	fail verification are quarantined and excluded from summaries.
+- **Bangla and English:** A single language setting controls the interface and model instructions.
 
-[Download the signed Android APK](https://github.com/amrrs/gemmachat-android/raw/main/dist/GemmaChat-1.0.0.apk)
+## Architecture
 
-Install flow:
-- Download the APK on your Android phone.
-- Tap the APK file to install it.
-- If Android prompts, allow `Install unknown apps` for your browser or file manager.
+```
+Text / photo / GPS
+				|
+				v
+Gemma 4 E2B on-device (LiteRT-LM)
+				|
+				v
+Kotlin reasoning core: triage, RAG, GIS, safety, summaries, mesh
+				|
+				v
+Offline first-aid, shelter, district, and road data
+```
 
-## Screenshot
+Gemma handles language, reasoning, structured triage, tool selection, and summaries. Geometry,
+retrieval, report counts, cryptography, and transport remain deterministic and testable.
 
-![Gemma Chat Android screenshot](gemma-chat-android.jpeg)
+## Requirements
 
-## Model
+- Android Studio with its bundled JDK 21 recommended
+- Android 12 (API 31) or later
+- A physical Android phone with at least 6 GB RAM; emulators are not suitable for the Gemma model
+- Internet access only for the initial model download
 
-- **Hugging Face:** [litert-community/gemma-4-E2B-it-litert-lm](https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm)
-- **Runtime:** [LiteRT-LM Kotlin API](https://github.com/google-ai-edge/LiteRT-LM/blob/main/docs/api/kotlin/getting_started.md)
-- Onboarding downloads the `.litertlm` file once (~2.5 GB) via a plain HTTP GET to the public resolve URL. No Hugging Face account or in-app token is required.
+The onboarding flow downloads
+[`gemma-4-E2B-it.litertlm`](https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm)
+(approximately 2.5 GB). Once installed, model inference and the core disaster workflow operate
+offline.
 
-## Device Note
+## Build and Run
 
-- Tested on a **Pixel 7a**.
-- Observed local generation speed was around **~12 tokens/second** in typical use.
-- Real-world speed will vary based on prompt length, temperature/thinking mode, thermal state, and available memory.
+1. Open `disha-android/` in Android Studio and allow Gradle to sync.
+2. Connect a supported physical device and run the `app` configuration.
+3. Accept the model-download consent during onboarding, then use **Flood drill** to explore the
+	 complete Disha workflow with sample reports.
 
-## Build
-
-Open the project in Android Studio with **JDK 17+**, sync Gradle, and run on a device with **Android 12+** and ideally **8 GB+ RAM**.
-
-For debug:
+From a terminal in this directory:
 
 ```bash
+./gradlew :app:testDebugUnitTest
 ./gradlew :app:assembleDebug
 ```
 
-For release verification:
+## Data and Safety
 
-```bash
-./gradlew :app:assembleRelease
-```
+- First-aid packs are grounded in WHO, IFRC, and Red Cross guidance.
+- Roads are derived from OpenStreetMap data; shelter data comes from HOT-OSM education-facility
+	data. Flood overlays in the detailed packs are explicitly illustrative scenarios, not live
+	flood intelligence.
+- Disha is not a medical authority. Its first-aid guidance supports, but never replaces,
+	professional care and emergency services.
+- Inference stays on-device. The app stores report and chat data locally, and the user can clear
+	stored content or remove the downloaded model in Settings.
 
-## Distribution Prep
+## Release Preparation
 
-- Review `RELEASE_CHECKLIST.md` before shipping an APK.
-- Fill `keystore.properties.example` into a real `keystore.properties` when you are ready to sign a release build.
-- If you plan a public release, replace the placeholder `com.example.gemmachat` app ID with your final package name first.
-
-## Install and Auth
-
-- Users can download the APK on their Android phone, tap it, and install it directly.
-- Android may ask them to allow `Install unknown apps` for the browser or file manager they used.
-- A proper public build should use a signed release APK rather than a debug APK.
-- No sign-in, API key, Hugging Face token, or special auth is required inside the app.
-- On first launch, the app asks for consent before downloading the local Gemma model (~2.5 GB).
-- Internet is only needed for the initial model download and any external links or app handoff actions the user chooses to open.
-- Microphone permission is only requested if the user uses voice input.
-
-## Privacy
-
-Inference is on-device. Network is used only for the initial model download and for any external links a user chooses to open. Chat history is saved as `chat_store.json` in app storage. Users can clear chats or delete the model from **Settings**.
+This module currently uses the placeholder application ID `com.example.gemmachat`. Replace it
+with the final package name before public distribution. Follow
+[`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md) to configure a signing key, build a release APK,
+and complete real-device checks.
 
 ## Credits
 
-- Built by [1littlecoder](https://x.com/1littlecoder)
-- Gemma 4 by [Google DeepMind](https://deepmind.google/models/gemma/gemma-4/)
-- LiteRT model packaging by [LiteRT Community on Hugging Face](https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm)
+- Gemma 4 by [Google DeepMind](https://deepmind.google/models/gemma/)
+- LiteRT-LM by [Google AI Edge](https://github.com/google-ai-edge/LiteRT-LM)
+- The Android project began from the Apache-2.0
+	[amrrs/gemmachat-android](https://github.com/amrrs/gemmachat-android) starter

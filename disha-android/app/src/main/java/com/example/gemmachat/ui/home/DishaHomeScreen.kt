@@ -1,5 +1,6 @@
 package com.example.gemmachat.ui.home
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,6 +28,7 @@ import compose.icons.feathericons.BarChart2
 import compose.icons.feathericons.HelpCircle
 import compose.icons.feathericons.MapPin
 import compose.icons.feathericons.MessageCircle
+import compose.icons.feathericons.PhoneCall
 import compose.icons.feathericons.Play
 import compose.icons.feathericons.Radio
 import compose.icons.feathericons.Settings
@@ -45,8 +47,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -56,6 +60,7 @@ import com.example.gemmachat.R
 import com.example.gemmachat.ui.components.HeroBanner
 import com.example.gemmachat.ui.demo.Actions
 import com.example.gemmachat.ui.demo.DemoDialog
+import com.example.gemmachat.ui.emergency.dialNumber
 import com.example.gemmachat.ui.i18n.tr
 import com.example.gemmachat.ui.theme.AccentPurple
 import com.example.gemmachat.ui.theme.BgCard
@@ -84,7 +89,11 @@ fun DishaHomeScreen(
     onChat: () -> Unit,
     onGuide: () -> Unit = {},
     onSettings: () -> Unit = {},
+    onEmergency: () -> Unit = {},
     onSeedDemo: () -> Unit = {},
+    modelReady: Boolean = true,
+    showCoach: Boolean = false,
+    onCoachDismiss: () -> Unit = {},
 ) {
     var showDemo by remember { mutableStateOf(false) }
     if (showDemo) {
@@ -135,6 +144,10 @@ fun DishaHomeScreen(
             "বন্যা জরুরি অবস্থার জন্য আপনার অফলাইন এআই সহায়ক"),
             color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
 
+        // ---- Emergency call: always the most prominent action ----
+        Spacer(Modifier.height(14.dp))
+        EmergencyCard(onEmergency = onEmergency)
+
         // ---- Flood drill launcher ----
         Spacer(Modifier.height(14.dp))
         Row(
@@ -157,6 +170,9 @@ fun DishaHomeScreen(
             }
         }
 
+        // ---- First-run coach balloon (shown once) ----
+        if (showCoach) CoachBalloon(onDismiss = onCoachDismiss)
+
         // ---- Hero illustration ----
         Spacer(Modifier.height(16.dp))
         HeroBanner(
@@ -173,6 +189,9 @@ fun DishaHomeScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
             shape = RoundedCornerShape(18.dp),
         ) {
+            // Status reflects whether Gemma is actually on the device — never claim "AI ready"
+            // when the model was skipped and only the deterministic core tools are available.
+            val dotColor = if (modelReady) Color(0xFF22A565) else Color(0xFFF5822B)
             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(44.dp).clip(CircleShape).background(AccentPurple.copy(alpha = 0.14f)),
                     contentAlignment = Alignment.Center) {
@@ -186,11 +205,16 @@ fun DishaHomeScreen(
                         Text(tr("Offline Mode", "অফলাইন মোডে"), color = AccentPurple,
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.bodyMedium)
-                        Text(" ●", color = Color(0xFF22A565),
+                        Text(" ●", color = dotColor,
                             style = MaterialTheme.typography.bodyMedium)
                     }
-                    Text(tr("All systems ready. AI is running on this device.",
-                        "সব প্রস্তুত। এআই এই ডিভাইসেই চলছে।"),
+                    Text(
+                        if (modelReady)
+                            tr("Gemma 4 is on this device. AI guidance runs fully offline.",
+                                "Gemma 4 এই ডিভাইসে আছে। এআই পরামর্শ সম্পূর্ণ অফলাইনে চলে।")
+                        else
+                            tr("Core tools ready. Download Gemma 4 in Settings for AI guidance.",
+                                "মূল টুল প্রস্তুত। এআই পরামর্শের জন্য সেটিংসে Gemma 4 ডাউনলোড করুন।"),
                         color = TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }
             }
@@ -224,6 +248,84 @@ fun DishaHomeScreen(
                 tr("AI Assistant", "এআই সহকারী"),
                 tr("Ask anything about flood safety & first aid", "বন্যা ও প্রাথমিক চিকিৎসা নিয়ে জিজ্ঞেস করুন"), onChat, it) },
         )
+    }
+}
+
+/**
+ * High-contrast emergency-call entry, kept at the top so Disha reads as an emergency tool first.
+ * Tapping the body opens the full list of official hotlines; the "999" pill dials the national
+ * emergency line straight away (via the dialer, so the user still confirms the call).
+ */
+@Composable
+private fun EmergencyCard(onEmergency: () -> Unit) {
+    val context = LocalContext.current
+    val red = Color(0xFFD92D20)
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(red)
+            .clickable(onClick = onEmergency).padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(44.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.18f)),
+            contentAlignment = Alignment.Center) {
+            Icon(FeatherIcons.PhoneCall, null, tint = Color.White, modifier = Modifier.size(24.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(tr("Emergency call", "জরুরি কল"), color = Color.White,
+                fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+            Text(tr("Police · Fire · Ambulance, and more", "পুলিশ · ফায়ার · অ্যাম্বুলেন্স, আরও"),
+                color = Color.White.copy(alpha = 0.9f), style = MaterialTheme.typography.bodySmall)
+        }
+        Spacer(Modifier.width(10.dp))
+        Box(
+            Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White)
+                .clickable { dialNumber(context, "999") }
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(tr("Call 999", "৯৯৯"), color = red, fontWeight = FontWeight.ExtraBold,
+                style = MaterialTheme.typography.titleSmall)
+        }
+    }
+}
+
+/** One-time speech balloon that points up at the flood-drill card to orient a first-time user. */
+@Composable
+private fun CoachBalloon(onDismiss: () -> Unit) {
+    Column {
+        Spacer(Modifier.height(6.dp))
+        // little upward pointer aligned under the drill card's icon
+        Canvas(Modifier.padding(start = 22.dp).size(width = 18.dp, height = 9.dp)) {
+            val p = Path().apply {
+                moveTo(0f, size.height); lineTo(size.width / 2f, 0f); lineTo(size.width, size.height); close()
+            }
+            drawPath(p, AccentPurple)
+        }
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(AccentPurple)
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(tr("👋 New here?", "👋 নতুন এসেছেন?"), color = Color.White,
+                    fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    tr("Tap “Try a flood drill” above for a quick guided tour of every tool — " +
+                        "or pick any tile below to start.",
+                        "উপরে “একটি বন্যা মহড়া করুন”-এ চাপ দিন প্রতিটি টুলের দ্রুত পরিচিতির জন্য — " +
+                            "অথবা নিচের যেকোনো টাইলে চাপ দিন।"),
+                    color = Color.White.copy(alpha = 0.92f), style = MaterialTheme.typography.bodySmall)
+            }
+            Spacer(Modifier.width(10.dp))
+            Box(
+                Modifier.clip(RoundedCornerShape(10.dp)).background(Color.White.copy(alpha = 0.18f))
+                    .clickable(onClick = onDismiss).padding(horizontal = 12.dp, vertical = 6.dp),
+            ) {
+                Text(tr("Got it", "বুঝেছি"), color = Color.White, fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.labelLarge)
+            }
+        }
     }
 }
 

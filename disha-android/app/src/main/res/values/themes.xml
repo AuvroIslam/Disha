@@ -1,11 +1,15 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- The system splash is just the Disha purple — no icon — so the only branded moment is the
+         in-app splash (owl + দিশা), avoiding a big-icon-then-small-icon double. -->
     <style name="Theme.GemmaChat" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">#0D0B1A</item>
+        <item name="windowSplashScreenBackground">#7B5CF0</item>
+        <item name="windowSplashScreenAnimatedIcon">@android:color/transparent</item>
         <item name="postSplashScreenTheme">@style/Theme.GemmaChat.Main</item>
     </style>
     <style name="Theme.GemmaChat.Main" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:statusBarColor">#0D0B1A</item>
-        <item name="android:navigationBarColor">#0D0B1A</item>
-        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">#F5F3FB</item>
+        <item name="android:navigationBarColor">#F5F3FB</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
     </style>
 </resources>
