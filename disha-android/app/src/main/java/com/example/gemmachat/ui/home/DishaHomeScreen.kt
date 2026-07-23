@@ -33,6 +33,7 @@ import compose.icons.feathericons.Play
 import compose.icons.feathericons.Radio
 import compose.icons.feathericons.Settings
 import compose.icons.feathericons.Shield
+import compose.icons.feathericons.Users
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -90,6 +91,8 @@ fun DishaHomeScreen(
     onGuide: () -> Unit = {},
     onSettings: () -> Unit = {},
     onEmergency: () -> Unit = {},
+    onCommunity: () -> Unit = {},
+    onFamily: () -> Unit = {},
     onSeedDemo: () -> Unit = {},
     modelReady: Boolean = true,
     showCoach: Boolean = false,
@@ -248,6 +251,50 @@ fun DishaHomeScreen(
                 tr("AI Assistant", "এআই সহকারী"),
                 tr("Ask anything about flood safety & first aid", "বন্যা ও প্রাথমিক চিকিৎসা নিয়ে জিজ্ঞেস করুন"), onChat, it) },
         )
+
+        // ---- Community Intelligence board (mesh-shared area reports) ----
+        Spacer(Modifier.height(14.dp))
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                .background(Color(0xFF12A594).copy(alpha = 0.12f))
+                .clickable(onClick = onCommunity).padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.size(44.dp).clip(CircleShape).background(Color(0xFF12A594)),
+                contentAlignment = Alignment.Center) {
+                Icon(FeatherIcons.Users, null, tint = Color.White, modifier = Modifier.size(24.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(tr("Community Board", "কমিউনিটি বোর্ড"), color = TextPrimary,
+                    fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                Text(tr("Share & see what's happening nearby — offline over mesh",
+                    "কাছে কী ঘটছে জানান ও দেখুন — মেশে অফলাইনে"),
+                    color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+
+        // ---- Family Reunion (encrypted family beacons over the mesh) ----
+        Spacer(Modifier.height(14.dp))
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                .background(Color(0xFF7B5CF0).copy(alpha = 0.12f))
+                .clickable(onClick = onFamily).padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.size(44.dp).clip(CircleShape).background(AccentPurple),
+                contentAlignment = Alignment.Center) {
+                Icon(FeatherIcons.Users, null, tint = Color.White, modifier = Modifier.size(24.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(tr("Family Reunion", "পরিবার পুনর্মিলন"), color = TextPrimary,
+                    fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                Text(tr("Find separated family when phones pass nearby — no network",
+                    "ফোন কাছাকাছি এলে বিচ্ছিন্ন পরিবার খুঁজুন — নেটওয়ার্ক ছাড়াই"),
+                    color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+            }
+        }
     }
 }
 

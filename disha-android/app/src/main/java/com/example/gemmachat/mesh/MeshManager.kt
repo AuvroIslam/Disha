@@ -123,6 +123,44 @@ class MeshManager(
         return env
     }
 
+    /** Compose + broadcast a signed community report (type = "community"). Same trust as SOS. */
+    fun sendReport(kind: String, note: String, district: String, lat: Double?, lon: Double?): SignedEnvelope {
+        clock += 1
+        val payload = mapOf(
+            "kind" to kind,
+            "note" to note,
+            "district" to district,
+            "lat" to (lat?.toString() ?: ""),
+            "lon" to (lon?.toString() ?: ""),
+        )
+        val env = SignedEnvelope.create(
+            signer, payload, UUID.randomUUID().toString(), clock, ttl = 4, type = "community")
+        seen.add(env.msgId)
+        broadcast(env)
+        onStatus(if (connected.isEmpty()) "No peers yet — report queued"
+        else "Report shared with ${connected.size} peer(s)")
+        return env
+    }
+
+    /**
+     * Broadcast a signed family "presence" beacon (type = "presence"). Only a hashed family tag and
+     * an encrypted member name go on the air, so a stranger in range learns nothing.
+     */
+    fun sendPresence(tag: String, sealedName: String, lat: Double?, lon: Double?): SignedEnvelope {
+        clock += 1
+        val payload = mapOf(
+            "tag" to tag,
+            "who" to sealedName,
+            "lat" to (lat?.toString() ?: ""),
+            "lon" to (lon?.toString() ?: ""),
+        )
+        val env = SignedEnvelope.create(
+            signer, payload, UUID.randomUUID().toString(), clock, ttl = 3, type = "presence")
+        seen.add(env.msgId)
+        broadcast(env)
+        return env
+    }
+
     private fun broadcast(env: SignedEnvelope) {
         if (connected.isEmpty()) return
         val bytes = gson.toJson(envToMap(env)).toByteArray(Charsets.UTF_8)

@@ -1,28 +1,14 @@
 package com.example.gemmachat.ui.mesh
 
 import android.app.Application
-import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gemmachat.GemmaChatApplication
-import com.example.gemmachat.core.SosReport
-import com.example.gemmachat.core.Triage
-import com.example.gemmachat.data.Regions
-import com.example.gemmachat.data.SosEntry
-import com.example.gemmachat.mesh.MeshManager
+import com.example.gemmachat.mesh.MeshMsg
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
-data class MeshMsg(
-    val text: String,
-    val sender: String,
-    val verified: Boolean,
-    val hops: Int,
-    val priority: String,
-    val color: String,
-    val mine: Boolean,
-)
 
 data class MeshUiState(
     val started: Boolean = false,
@@ -31,60 +17,41 @@ data class MeshUiState(
     val messages: List<MeshMsg> = emptyList(),
 )
 
+/** Thin wrapper over the app-scoped [com.example.gemmachat.mesh.MeshHub] shared with Community. */
 class MeshViewModel(application: Application) : AndroidViewModel(application) {
 
     private val app = application as GemmaChatApplication
-    val localName = "Disha ${Build.MODEL}".take(48)
-    private var mgr: MeshManager? = null
+    private val hub = app.meshHub
+    val localName = hub.localName
+    private var acquired = false
 
     private val _ui = MutableStateFlow(MeshUiState())
     val ui: StateFlow<MeshUiState> = _ui
 
+    init {
+        // Mirror the shared hub's state into this screen's UI. Atomic update{} — these collectors
+        // run concurrently, so a plain read-modify-write would clobber each other.
+        viewModelScope.launch { hub.started.collect { v -> _ui.update { it.copy(started = v) } } }
+        viewModelScope.launch { hub.status.collect { v -> _ui.update { it.copy(status = v) } } }
+        viewModelScope.launch { hub.peers.collect { v -> _ui.update { it.copy(peers = v) } } }
+        viewModelScope.launch { hub.sosMessages.collect { v -> _ui.update { it.copy(messages = v) } } }
+    }
+
     fun start() {
-        if (mgr != null) return
-        mgr = MeshManager(
-            getApplication(), localName,
-            onStatus = { s -> _ui.value = _ui.value.copy(status = s) },
-            onPeersChanged = { p -> _ui.value = _ui.value.copy(peers = p) },
-            onReceived = { env, ok, hops ->
-                val text = env.payload["text"] as? String ?: ""
-                val lat = (env.payload["lat"] as? String)?.toDoubleOrNull()
-                val lon = (env.payload["lon"] as? String)?.toDoubleOrNull()
-                val sos = SosReport(text = text, lat = lat, lon = lon, hops = hops)
-                val tr = Triage.fallbackTriage(sos)
-                val entry = SosEntry(sos, tr, source = "mesh_recv", verified = ok, hops = hops)
-                // Unverified envelopes are quarantined, never merged into the shared SOS dataset —
-                // a forged/corrupted report must not be able to distort rescue priority.
-                if (ok) app.sosRepository.add(entry) else app.sosRepository.addQuarantined(entry)
-                val msg = MeshMsg(text, env.sender, ok, hops, tr.priority, tr.color, mine = false)
-                _ui.value = _ui.value.copy(messages = _ui.value.messages + msg)
-            },
-        ).also { it.start() }
-        _ui.value = _ui.value.copy(started = true)
+        if (acquired) return
+        acquired = true
+        hub.acquire()
     }
 
     fun send(text: String) {
-        val t = text.trim()
-        if (t.isEmpty()) return
-        val m = mgr ?: return
-        viewModelScope.launch {
-            val loc = app.locationProvider.current()
-            val region = Regions.byId(app.prefs.activeRegion.value)
-            val lat = loc?.first ?: region.centerLat
-            val lon = loc?.second ?: region.centerLon
-            m.sendSos(t, lat, lon)
-            val sos = SosReport(text = t, lat = lat, lon = lon, reporterRole = "volunteer")
-            val tr = Triage.fallbackTriage(sos)
-            app.sosRepository.add(SosEntry(sos, tr, source = "mesh_sent"))
-            val msg = MeshMsg(t, localName, true, 0, tr.priority, tr.color, mine = true)
-            _ui.value = _ui.value.copy(messages = _ui.value.messages + msg)
-        }
+        if (text.isBlank()) return
+        viewModelScope.launch { hub.sendSos(text) }
     }
 
     fun stop() {
-        mgr?.stop()
-        mgr = null
-        _ui.value = _ui.value.copy(started = false, peers = 0)
+        if (!acquired) return
+        acquired = false
+        hub.release()
     }
 
     override fun onCleared() {

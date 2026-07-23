@@ -20,29 +20,34 @@ Verified end-to-end on real Android phones (**Pixel 10a**, **Samsung Galaxy S21 
 
 ---
 
-## 📱 The app — real screenshots, captured on-device (offline)
+## The app — real screenshots, captured on-device (offline)
 
 <table>
   <tr>
-    <td align="center"><img src="docs/screenshots/02_home.png" width="230"/><br/><b>Home</b><br/>Emergency-first, offline status</td>
-    <td align="center"><img src="docs/screenshots/04_emergency.png" width="230"/><br/><b>Emergency Call</b><br/>Official BD hotlines, one tap</td>
-    <td align="center"><img src="docs/screenshots/05_triage.png" width="230"/><br/><b>Rescue Triage</b><br/>Gemma JSON → CRITICAL 0.95</td>
+    <td align="center"><img src="docs/screenshots/01_splash.png" width="230"/><br/><b>Splash</b><br/>দিশা, offline-first</td>
+    <td align="center"><img src="docs/screenshots/02_home.png" width="230"/><br/><b>Home (English)</b><br/>Emergency-first, offline status</td>
+    <td align="center"><img src="docs/screenshots/12_bangla.png" width="230"/><br/><b>Home (বাংলা)</b><br/>One toggle → whole UI in Bangla</td>
   </tr>
   <tr>
+    <td align="center"><img src="docs/screenshots/04_emergency.png" width="230"/><br/><b>Emergency Call</b><br/>Official BD hotlines, one tap</td>
+    <td align="center"><img src="docs/screenshots/05_triage.png" width="230"/><br/><b>Rescue Triage</b><br/>Gemma JSON → CRITICAL 0.95</td>
     <td align="center"><img src="docs/screenshots/06_firstaid.png" width="230"/><br/><b>First Aid</b><br/>Cited CPR (100–120/min)</td>
+  </tr>
+  <tr>
     <td align="center"><img src="docs/screenshots/07_shelter_route.png" width="230"/><br/><b>Safe Shelter &amp; Route</b><br/>OSM route, flood-avoid</td>
+    <td align="center"><img src="docs/screenshots/08_shelter_nationwide.png" width="230"/><br/><b>Nationwide fallback</b><br/>Nearest of 9,525 shelters</td>
     <td align="center"><img src="docs/screenshots/09_summary.png" width="230"/><br/><b>Coordinator Summary</b><br/>Code counts, Gemma briefing</td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screenshots/10_mesh.png" width="230"/><br/><b>Mesh SOS</b><br/>Ed25519 ✓ signed, phone-to-phone</td>
+    <td align="center"><img src="docs/screenshots/10_mesh.png" width="230"/><br/><b>Mesh SOS</b><br/>Ed25519 signed, phone-to-phone</td>
     <td align="center"><img src="docs/screenshots/11_chat.png" width="230"/><br/><b>AI Assistant</b><br/>On-device Gemma 4 chat</td>
-    <td align="center"><img src="docs/screenshots/01_splash.png" width="230"/><br/><b>Splash</b><br/>দিশা, offline-first</td>
+    <td align="center"><img src="docs/screenshots/03_features.png" width="230"/><br/><b>All tools</b><br/>Every feature, one screen</td>
   </tr>
 </table>
 
 ---
 
-## 🧩 What we built — feature → problem → technical decision
+## What we built — feature → problem → technical decision
 
 Every feature exists to solve a concrete failure of disaster response, and each pairs **Gemma's
 reasoning** with a **deterministic tool** so the facts (priority, routes, counts, signatures) are
@@ -50,69 +55,37 @@ testable and never hallucinated.
 
 | Feature | Problem it solves | How **Gemma 4** is used | Key technical decision |
 | --- | --- | --- | --- |
-| ☎️ **Emergency Call** | Before *any* AI, people need the right official hotline **now** — and a call still needs signal. | — (works with no model) | One-tap **999** + curated official BD numbers (**1090** flood warning, **16111** Coast Guard, **333**, **102**, **16263**, **109**, **1098**) **bundled offline**; `ACTION_DIAL` needs no call permission and never dials without the user; links to Mesh SOS when there's no signal. |
-| 🚑 **Rescue Triage** | Responders are buried in SOS messages and can't tell which are life-threatening first. | Reads **text + photo (multimodal)** → emits **structured JSON** `{priority, signals, rationale}`. | Deterministic Triage engine ranks the queue and **forces human review** on critical cases; a **rule-based fallback** runs if the model is off; `generateWith()` isolates the task session from chat. |
-| 🩹 **First Aid** | People need trustworthy first aid **offline, in Bangla**, with no hallucinated medicine. | **Translates** a Bangla query to English once for retrieval, then writes a **grounded** answer and **refuses** when nothing fits. | **Hybrid RAG** (English tags = single source of truth, **k=4** so the CPR passage is always in scope); citations filtered to **only the sources actually used**; life-threat red-flag banner. |
-| 🗺️ **Safe Shelter & Route** | Roads flood; people need a safe way to the nearest shelter — **anywhere** in the country. | Selects the **GIS tool** and narrates the guidance. | **Dijkstra flood-avoid** routing on **real OSM road graphs** (3 detailed districts); nationwide fallback finds the nearest of **9,525 real shelters** + safe-direction. Real GPS via `FusedLocation`; flood extent honestly labelled *illustrative*. |
-| 📋 **Coordinator Summary** | Coordinators need an accurate briefing, **not invented numbers**. | Writes the prose **briefing**. | **All counts computed in code** from a shared `SosRepository` of **verified** reports; practice/drill data purged the moment a real report arrives; quarantined (unverified) reports excluded. |
-| 📻 **Mesh SOS** | Floods knock out mobile networks exactly when coordination matters most. | — (pure transport/crypto, so it works even without the model) | **Ed25519-signed** SOS over **Nearby Connections** (BT/Wi-Fi), multi-hop relay, explicit **`isProductionTrusted()`** gate (`scheme == ed25519`) blocks a **downgrade attack**; forgeries **quarantined**. Verified phone-to-phone on two devices. |
-| 💬 **AI Assistant** | General flood-safety & first-aid Q&A, offline. | On-device chat (**Short / Thinking** modes) + multimodal **photo assessment**. | Single-session **LiteRT-LM** managed via `generateWith()`; visible "Gemma can make mistakes" disclaimer. |
-| 🌐 **Full Bangla mode** | The people most affected read **Bangla**, not English. | Every answer switches language via a **single app-language directive**. | One toggle drives both UI (`LocalBangla`) and model output; a **completeness rule** keeps every number/dose verbatim (e.g. `100–120/min`). |
-| 🧭 **Flood drill + onboarding** | People shouldn't learn the tool *during* a real emergency. | Narrates each step. | Guided drill **seeds sample reports** (purged before real use), a first-run coach balloon, and a Guide screen. |
+| **Emergency Call** | Before *any* AI, people need the right official hotline **now** — and a call still needs signal. | — (works with no model) | One-tap **999** + curated official BD numbers (**1090** flood warning, **16111** Coast Guard, **333**, **102**, **16263**, **109**, **1098**) **bundled offline**; `ACTION_DIAL` needs no call permission and never dials without the user; links to Mesh SOS when there's no signal. |
+| **Rescue Triage** | Responders are buried in SOS messages and can't tell which are life-threatening first. | Reads **text + photo (multimodal)** → emits **structured JSON** `{priority, signals, rationale}`. | Deterministic Triage engine ranks the queue and **forces human review** on critical cases; a **rule-based fallback** runs if the model is off; `generateWith()` isolates the task session from chat. |
+| **First Aid** | People need trustworthy first aid **offline, in Bangla**, with no hallucinated medicine. | **Translates** a Bangla query to English once for retrieval, then writes a **grounded** answer and **refuses** when nothing fits. | **Hybrid RAG** (English tags = single source of truth, **k=4** so the CPR passage is always in scope); citations filtered to **only the sources actually used**; life-threat red-flag banner. |
+| **Safe Shelter & Route** | Roads flood; people need a safe way to the nearest shelter — **anywhere** in the country. | Selects the **GIS tool** and narrates the guidance. | **Dijkstra flood-avoid** routing on **real OSM road graphs** (3 detailed districts); nationwide fallback finds the nearest of **9,525 real shelters** + safe-direction. Real GPS via `FusedLocation`; flood extent honestly labelled *illustrative*. |
+| **Coordinator Summary** | Coordinators need an accurate briefing, **not invented numbers**. | Writes the prose **briefing**. | **All counts computed in code** from a shared `SosRepository` of **verified** reports; practice/drill data purged the moment a real report arrives; quarantined (unverified) reports excluded. |
+| **Mesh SOS** | Floods knock out mobile networks exactly when coordination matters most. | — (pure transport/crypto, so it works even without the model) | **Ed25519-signed** SOS over **Nearby Connections** (BT/Wi-Fi), multi-hop relay, explicit **`isProductionTrusted()`** gate (`scheme == ed25519`) blocks a **downgrade attack**; forgeries **quarantined**. Verified phone-to-phone on two devices. |
+| **AI Assistant** | General flood-safety & first-aid Q&A, offline. | On-device chat (**Short / Thinking** modes) + multimodal **photo assessment**. | Single-session **LiteRT-LM** managed via `generateWith()`; visible "Gemma can make mistakes" disclaimer. |
+| **Full Bangla mode** | The people most affected read **Bangla**, not English. | Every answer switches language via a **single app-language directive**. | One toggle drives both UI (`LocalBangla`) and model output; a **completeness rule** keeps every number/dose verbatim (e.g. `100–120/min`). |
+| **Flood drill + onboarding** | People shouldn't learn the tool *during* a real emergency. | Narrates each step. | Guided drill **seeds sample reports** (purged before real use), a first-run coach balloon, and a Guide screen. |
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 Gemma does the **reasoning and language**; math, routing, retrieval, crypto, and transport stay
 **deterministic** so they're testable and never "hallucinate" a number — all on one phone, offline.
 
-> Editable source: [`docs/diagrams/architecture.drawio`](docs/diagrams/architecture.drawio) (open in [draw.io](https://app.diagrams.net)).
+<p align="center"><img src="docs/diagrams/architecture.png" width="900" alt="Disha on-device architecture"/></p>
 
-```mermaid
-flowchart TB
-    A1["📝 Text SOS"] --> UI
-    A2["📷 Photo"] --> UI
-    A3["📍 GPS"] --> UI
-    UI["Jetpack Compose UI — Home · Emergency · Triage · First Aid · Shelter and Route · Summary · Mesh · Assistant · বাংলা/EN"] --> G
-    G["Gemma 4 E2B · LiteRT-LM · on-device — the ONLY LLM<br/>reasons · selects tools · writes prose · multimodal · structured JSON · translation"] --> CORE
-    subgraph CORE["Deterministic core — Kotlin, unit-tested (never hallucinates a number)"]
-        C1["Triage → JSON + fallback"]
-        C2["RAG k=4 + citations"]
-        C3["GIS Dijkstra flood-avoid"]
-        C4["Summary counts"]
-        C5["Ed25519 mesh · verify-before-trust"]
-        C6["Safety + human review"]
-    end
-    CORE --> DATA
-    subgraph DATA["Offline data packs — bundled assets"]
-        D1["OSM road graphs"]
-        D2["64 districts"]
-        D3["9,525 shelters"]
-        D4["First-aid packs (WHO/IFRC)"]
-        D5["Emergency numbers"]
-    end
-```
+> Editable source: [`docs/diagrams/architecture.drawio`](docs/diagrams/architecture.drawio) (open in [draw.io](https://app.diagrams.net)).
 
 ---
 
-## 🧠 How Gemma 4 drives every feature
+## How Gemma 4 drives every feature
 
 Gemma reasons and writes; the deterministic core does the exact math, retrieval and crypto. If
 Gemma is unavailable (not downloaded / low-RAM device), the core still runs.
 
-> Editable source: [`docs/diagrams/gemma-flow.drawio`](docs/diagrams/gemma-flow.drawio).
+<p align="center"><img src="docs/diagrams/gemma-flow.png" width="960" alt="How Gemma 4 drives each feature"/></p>
 
-```mermaid
-flowchart LR
-    IN["User input<br/>📝 text · 📷 photo · 📍 GPS"] --> G
-    G["Gemma 4 E2B<br/>on-device · only LLM<br/>reasons · picks tool · writes prose"]
-    G --> G1["Triage: photo+text → JSON {priority, signals, why}"] --> T1["Triage engine ranks queue<br/>(rule-based fallback)"] --> R1["🚑 Prioritised queue<br/>+ human-review flag"]
-    G --> G2["Detect language · translate BN→EN for retrieval"] --> T2["RAG k=4 over WHO/IFRC packs"] --> R2["🩹 Cited steps —<br/>only sources used"]
-    G --> G3["Select the GIS tool"] --> T3["Dijkstra flood-avoid /<br/>nearest of 9,525 shelters"] --> R3["🗺️ Route or<br/>safe-direction"]
-    G --> G4["Write briefing from real counts"] --> T4["SosRepository counts in code"] --> R4["📋 Briefing —<br/>never invented numbers"]
-    G -. no model needed .-> G5["Mesh SOS"] --> T5["Ed25519 sign → Nearby Connections<br/>→ verify-before-trust"] --> R5["📻 Trusted merged ·<br/>forgeries quarantined"]
-```
+> Editable source: [`docs/diagrams/gemma-flow.drawio`](docs/diagrams/gemma-flow.drawio).
 
 ---
 

@@ -145,7 +145,7 @@ fun MeshScreen(viewModel: MeshViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-private fun MeshRow(m: MeshMsg) {
+private fun MeshRow(m: com.example.gemmachat.mesh.MeshMsg) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

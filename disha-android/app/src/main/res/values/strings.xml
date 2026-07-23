@@ -79,7 +79,7 @@
     <string name="about_app_description">Offline disaster-response companion powered by on-device Gemma 4 E2B.</string>
     <string name="about_version">Version %1$s</string>
     <string name="about_creator_title">Android starter by 1littlecoder</string>
-    <string name="about_creator_description">Based on the Apache-2.0 Gemma Chat starter</string>
+    <string name="about_creator_description">Based on the open-source LiteRT-LM Gemma chat starter</string>
     <string name="about_litert_title">Thanks to LiteRT Community</string>
     <string name="about_litert_description">Hugging Face model packaging and distribution</string>
     <string name="about_gemma_title">Gemma 4 by Google DeepMind</string>

@@ -35,6 +35,25 @@ class AppPrefs(context: Context) {
         sp.edit().putBoolean(KEY_COACH_SEEN, true).apply()
     }
 
+    // Family Reunion: the shared family code (never broadcast in clear) + this phone's member name.
+    private val _familyCode = MutableStateFlow(sp.getString(KEY_FAMILY_CODE, "") ?: "")
+    val familyCode: StateFlow<String> = _familyCode.asStateFlow()
+
+    private val _memberName = MutableStateFlow(sp.getString(KEY_MEMBER_NAME, "") ?: "")
+    val memberName: StateFlow<String> = _memberName.asStateFlow()
+
+    fun setFamily(code: String, name: String) {
+        _familyCode.value = code.trim()
+        _memberName.value = name.trim()
+        sp.edit().putString(KEY_FAMILY_CODE, code.trim())
+            .putString(KEY_MEMBER_NAME, name.trim()).apply()
+    }
+
+    fun clearFamily() {
+        _familyCode.value = ""; _memberName.value = ""
+        sp.edit().remove(KEY_FAMILY_CODE).remove(KEY_MEMBER_NAME).apply()
+    }
+
     fun setLanguage(lang: String) {
         _language.value = lang
         sp.edit().putString(KEY_LANG, lang).apply()
@@ -58,5 +77,7 @@ class AppPrefs(context: Context) {
         private const val KEY_INSTALLED = "installed_regions"
         private const val KEY_ACTIVE = "active_region"
         private const val KEY_COACH_SEEN = "coach_seen"
+        private const val KEY_FAMILY_CODE = "family_code"
+        private const val KEY_MEMBER_NAME = "member_name"
     }
 }

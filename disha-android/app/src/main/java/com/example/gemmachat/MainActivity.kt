@@ -21,7 +21,11 @@ import com.example.gemmachat.data.download.HfDownloadRepository
 import com.example.gemmachat.ui.i18n.LocalBangla
 import com.example.gemmachat.ui.chat.ChatScreen
 import com.example.gemmachat.ui.chat.ChatViewModel
+import com.example.gemmachat.ui.community.CommunityScreen
+import com.example.gemmachat.ui.community.CommunityViewModel
 import com.example.gemmachat.ui.emergency.EmergencyScreen
+import com.example.gemmachat.ui.family.FamilyScreen
+import com.example.gemmachat.ui.family.FamilyViewModel
 import com.example.gemmachat.ui.firstaid.FirstAidScreen
 import com.example.gemmachat.ui.firstaid.FirstAidViewModel
 import com.example.gemmachat.ui.gis.GisScreen
@@ -54,6 +58,8 @@ private object Routes {
     const val CHAT = "chat"
     const val SETTINGS = "settings"
     const val EMERGENCY = "emergency"
+    const val COMMUNITY = "community"
+    const val FAMILY = "family"
 }
 
 class MainActivity : ComponentActivity() {
@@ -125,6 +131,8 @@ private fun DishaNavHost() {
                 onGuide = { navController.navigate(Routes.GUIDE) },
                 onSettings = { navController.navigate(Routes.SETTINGS) },
                 onEmergency = { navController.navigate(Routes.EMERGENCY) },
+                onCommunity = { navController.navigate(Routes.COMMUNITY) },
+                onFamily = { navController.navigate(Routes.FAMILY) },
                 onSeedDemo = {
                     if (app.sosRepository.entries.value.none { it.source == "drill" }) {
                         RegionAssets.loadScenarios(context).forEach {
@@ -162,6 +170,14 @@ private fun DishaNavHost() {
                 onBack = { navController.popBackStack() },
                 onMesh = { navController.navigate(Routes.MESH) },
             )
+        }
+        composable(Routes.COMMUNITY) {
+            val vm: CommunityViewModel = viewModel(factory = appFactory())
+            CommunityScreen(viewModel = vm, onBack = { navController.popBackStack() })
+        }
+        composable(Routes.FAMILY) {
+            val vm: FamilyViewModel = viewModel(factory = appFactory())
+            FamilyScreen(viewModel = vm, onBack = { navController.popBackStack() })
         }
         composable(Routes.CHAT) {
             val vm: ChatViewModel = viewModel(factory = appFactory())

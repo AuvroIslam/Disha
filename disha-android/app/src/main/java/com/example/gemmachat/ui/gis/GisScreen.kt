@@ -5,7 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,14 +23,19 @@ import androidx.compose.foundation.verticalScroll
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.AlertTriangle
 import compose.icons.feathericons.ArrowLeft
-import compose.icons.feathericons.Maximize2
-import compose.icons.feathericons.X
+import compose.icons.feathericons.ChevronDown
+import compose.icons.feathericons.MapPin
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -40,7 +45,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -54,12 +58,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
 import com.example.gemmachat.R
 import com.example.gemmachat.core.Gis
@@ -87,7 +87,7 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
     }
 
     // Frame the map on what matters — you, the route and the shelters — not the whole road
-    // extract, so the default view is readable. Pinch-zoom lets the user go closer.
+    // extract, so the default view is readable.
     val bbox = remember(ui.userLat, ui.userLon, ui.shelters, ui.detailed, ui.nearbyPublic, ui.route) {
         val lats = ArrayList<Double>(); val lons = ArrayList<Double>()
         ui.route?.polyline?.forEach { lats.add(it[0]); lons.add(it[1]) }
@@ -101,7 +101,6 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
         val padLon = (lons.max() - lons.min()).coerceAtLeast(0.004) * 0.12
         doubleArrayOf(lats.min() - padLat, lats.max() + padLat, lons.min() - padLon, lons.max() + padLon)
     }
-    var showFullMap by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -125,14 +124,14 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
             val district = if (LocalBangla.current) ui.districtBn else ui.districtEn
             Text(
                 when {
-                    ui.locating -> tr("Locating you via GPS…", "জিপিএস দিয়ে অবস্থান নেওয়া হচ্ছে…")
-                    !ui.computed -> tr("Works anywhere in Bangladesh. Grant location for a precise result.",
-                        "বাংলাদেশের যেকোনো জায়গায় কাজ করে। নির্ভুল ফলাফলের জন্য লোকেশন অনুমতি দিন।")
-                    ui.detailed -> tr("You are in $district. Detailed offline map available.",
-                        "আপনি $district-এ আছেন। বিস্তারিত অফলাইন মানচিত্র রয়েছে।") +
-                        (if (ui.usingGps) "" else tr(" (GPS off — using region centre.)", " (জিপিএস বন্ধ — এলাকার কেন্দ্র।)"))
-                    else -> tr("You are in $district. No detailed map here yet — showing safe-direction guidance.",
-                        "আপনি $district-এ আছেন। এখানে বিস্তারিত মানচিত্র নেই — নিরাপদ দিকনির্দেশনা দেখানো হচ্ছে।")
+                    ui.locating -> tr("Locating…", "অবস্থান নেওয়া হচ্ছে…")
+                    !ui.hasLocation -> tr("Showing $district shelters. Tap the map to set your location, or use GPS.",
+                        "$district-এর আশ্রয় দেখানো হচ্ছে। আপনার অবস্থান দিতে ম্যাপে চাপ দিন, বা জিপিএস ব্যবহার করুন।")
+                    ui.detailed -> tr("You are in $district.", "আপনি $district-এ আছেন।") +
+                        (if (ui.manualPin) tr(" Pinned location.", " চিহ্নিত অবস্থান।")
+                        else if (ui.usingGps) tr(" GPS location.", " জিপিএস অবস্থান।") else "")
+                    else -> tr("You are in $district. Nearest shelters shown — tap one to see its distance.",
+                        "আপনি $district-এ আছেন। নিকটতম আশ্রয় দেখানো হচ্ছে — দূরত্ব দেখতে একটিতে চাপ দিন।")
                 },
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary,
             )
@@ -163,6 +162,10 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
                     else tr("Find nearest safe shelter", "নিকটতম নিরাপদ আশ্রয় খুঁজুন"))
             }
 
+            // ---- Map Assistant: ask in natural language; Gemma picks a tool, code runs it ----
+            Spacer(Modifier.height(12.dp))
+            MapAssistantCard(ui, onAsk = { viewModel.ask(it) })
+
             if (ui.detailed) {
                 Spacer(Modifier.height(12.dp))
                 Card(
@@ -187,29 +190,46 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
                 }
             }
 
-            // ---- mini map — static preview; tap opens a full-screen zoomable map ---- //
+            // ---- area picker (over the map) ---- //
             Spacer(Modifier.height(12.dp))
+            AreaPicker(
+                regions = viewModel.regions(),
+                currentId = ui.overviewRegion,
+                onPick = { viewModel.setRegion(it) },
+            )
+
+            // ---- mini map — tap to set your location ---- //
+            Spacer(Modifier.height(8.dp))
             Card(Modifier.fillMaxWidth()) {
-                Box(
-                    Modifier.fillMaxWidth().height(260.dp).clipToBounds()
-                        .clickable { showFullMap = true },
-                ) {
-                    Canvas(Modifier.fillMaxSize().padding(10.dp)) { drawShelterMap(ui, bbox) }
-                    Row(
-                        Modifier.align(Alignment.TopEnd).padding(8.dp)
-                            .clip(RoundedCornerShape(8.dp)).background(Color(0xCC1B1030))
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(FeatherIcons.Maximize2, null, tint = Color.White, modifier = Modifier.size(13.dp))
-                        Spacer(Modifier.width(5.dp))
-                        Text(tr("Tap to enlarge", "বড় করতে চাপ দিন"),
-                            color = Color.White, style = MaterialTheme.typography.labelSmall)
+                Box(Modifier.fillMaxWidth().height(260.dp).clipToBounds()) {
+                    Canvas(
+                        Modifier.fillMaxSize().pointerInput(bbox) {
+                            detectTapGestures { off ->
+                                val w = size.width.toFloat(); val h = size.height.toFloat(); val p = 14f
+                                val dLat = (bbox[1] - bbox[0]).let { if (it == 0.0) 1e-6 else it }
+                                val dLon = (bbox[3] - bbox[2]).let { if (it == 0.0) 1e-6 else it }
+                                val lon = bbox[2] + ((off.x - p) / (w - 2 * p)) * dLon
+                                val lat = bbox[1] - ((off.y - p) / (h - 2 * p)) * dLat
+                                viewModel.setManualLocation(
+                                    lat.coerceIn(bbox[0], bbox[1]), lon.coerceIn(bbox[2], bbox[3]))
+                            }
+                        },
+                    ) { drawShelterMap(ui, bbox) }
+                    if (!ui.hasLocation) {
+                        Row(
+                            Modifier.align(Alignment.BottomCenter).padding(8.dp)
+                                .clip(RoundedCornerShape(8.dp)).background(Color(0xCC1B1030))
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(FeatherIcons.MapPin, null, tint = Color.White, modifier = Modifier.size(13.dp))
+                            Spacer(Modifier.width(5.dp))
+                            Text(tr("Tap the map to set your location", "অবস্থান দিতে ম্যাপে চাপ দিন"),
+                                color = Color.White, style = MaterialTheme.typography.labelSmall)
+                        }
                     }
                 }
             }
-
-            if (showFullMap) FullMapDialog(ui, bbox, onClose = { showFullMap = false })
             Spacer(Modifier.height(4.dp))
             MapLegend(ui.detailed)
             if (ui.detailed) {
@@ -283,12 +303,121 @@ fun GisScreen(viewModel: GisViewModel, onBack: () -> Unit) {
                     "সরকারি স্কুল ও কলেজ — সাধারণত বন্যা আশ্রয় হিসেবে ব্যবহৃত হয়।"),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                ui.nearbyPublic.forEach { h -> PublicShelterRow(h) }
+                ui.nearbyPublic.forEachIndexed { i, h ->
+                    PublicShelterRow(h, selected = i == ui.selectedPublicIdx,
+                        best = i == 0, onClick = { viewModel.selectPublicShelter(i) })
+                }
             } else if (!ui.computed) {
                 Spacer(Modifier.height(12.dp))
                 Text(tr("Tap “Find nearest safe shelter”. It uses your GPS and works anywhere in Bangladesh.",
                     "“নিকটতম নিরাপদ আশ্রয় খুঁজুন”-এ চাপ দিন। এটি আপনার জিপিএস ব্যবহার করে, বাংলাদেশের যেকোনো জায়গায় কাজ করে।"),
                     style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun MapAssistantCard(ui: GisUiState, onAsk: (String) -> Unit) {
+    var q by remember { mutableStateOf("") }
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp)) {
+            Text(tr("Ask about your area", "আপনার এলাকা নিয়ে জিজ্ঞেস করুন"),
+                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                tr("Gemma reads your question and answers from the offline map data — on your phone.",
+                    "Gemma আপনার প্রশ্ন পড়ে অফলাইন ম্যাপ ডেটা থেকে উত্তর দেয় — আপনার ফোনেই।"),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = q, onValueChange = { q = it }, modifier = Modifier.weight(1f),
+                    placeholder = { Text(tr("Ask in Bangla or English…", "বাংলা বা ইংরেজিতে জিজ্ঞেস করুন…")) },
+                    singleLine = true, enabled = !ui.assistantBusy,
+                )
+                Spacer(Modifier.width(8.dp))
+                Button(onClick = { onAsk(q) }, enabled = !ui.assistantBusy && q.isNotBlank()) {
+                    Text(tr("Ask", "জিজ্ঞেস"))
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Row {
+                AssistExample(tr("Nearest hospital", "নিকটতম হাসপাতাল")) { q = it; onAsk(it) }
+                Spacer(Modifier.width(8.dp))
+                AssistExample(tr("Safe route to shelter", "আশ্রয়ে নিরাপদ পথ")) { q = it; onAsk(it) }
+            }
+
+            if (ui.assistantBusy) {
+                Spacer(Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text(tr("Gemma is working…", "Gemma কাজ করছে…"),
+                        style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            ui.assistantAnswer?.let { ans ->
+                Spacer(Modifier.height(12.dp))
+                Card(colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text("✦ Gemma", style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.height(4.dp))
+                        Text(ans, style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AssistExample(label: String, onClick: (String) -> Unit) {
+    Text(label, style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f))
+            .clickable { onClick(label) }.padding(horizontal = 10.dp, vertical = 6.dp))
+}
+
+@Composable
+private fun AreaPicker(
+    regions: List<com.example.gemmachat.data.RegionPack>,
+    currentId: String,
+    onPick: (String) -> Unit,
+) {
+    val bangla = LocalBangla.current
+    var open by remember { mutableStateOf(false) }
+    val current = regions.firstOrNull { it.id == currentId }
+    val currentName = current?.let { if (bangla) it.nameBn else it.nameEn }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(tr("Area:", "এলাকা:"), style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(8.dp))
+        Box {
+            Row(
+                Modifier.clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f))
+                    .clickable { open = true }.padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(currentName ?: tr("Choose area", "এলাকা বাছুন"),
+                    color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.width(6.dp))
+                Icon(FeatherIcons.ChevronDown, null, tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp))
+            }
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                regions.forEach { r ->
+                    DropdownMenuItem(
+                        text = { Text(if (bangla) r.nameBn else r.nameEn) },
+                        onClick = { open = false; onPick(r.id) },
+                    )
+                }
             }
         }
     }
@@ -334,7 +463,9 @@ private fun HighGroundBadge() {
 }
 
 @Composable
-private fun PublicShelterRow(h: PublicShelterHit) {
+private fun PublicShelterRow(
+    h: PublicShelterHit, selected: Boolean, best: Boolean, onClick: () -> Unit,
+) {
     val typeLabel = when (h.shelter.type) {
         "c" -> tr("College", "কলেজ")
         "u" -> tr("University", "বিশ্ববিদ্যালয়")
@@ -342,9 +473,27 @@ private fun PublicShelterRow(h: PublicShelterHit) {
     }
     val place = listOf(h.shelter.upazila, h.shelter.district)
         .filter { it.isNotBlank() }.joinToString(", ")
-    Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+    Card(
+        Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable(onClick = onClick)
+            .let {
+                if (selected) it.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+                else it
+            },
+    ) {
         Column(Modifier.padding(12.dp)) {
-            Text(h.shelter.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(h.shelter.name, style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false))
+                if (best) {
+                    Spacer(Modifier.width(8.dp))
+                    Text(tr("AI PICK", "এআই পছন্দ"), style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clip(RoundedCornerShape(6.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp))
+                }
+            }
             Text("$typeLabel · ${fmtDist(h.distM)}" + if (place.isNotBlank()) " · $place" else "",
                 style = MaterialTheme.typography.bodySmall)
         }
@@ -416,36 +565,7 @@ private fun LegendSwatch(color: Color) {
     Box(Modifier.size(10.dp).background(color.copy(alpha = 0.35f)))
 }
 
-@Composable
-private fun FullMapDialog(ui: GisUiState, bbox: DoubleArray, onClose: () -> Unit) {
-    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        var scale by remember { mutableFloatStateOf(1f) }
-        var pan by remember { mutableStateOf(Offset.Zero) }
-        Box(Modifier.fillMaxSize().background(Color(0xFF0E0A1A))) {
-            Canvas(
-                Modifier.fillMaxSize().padding(16.dp)
-                    .pointerInput(Unit) {
-                        detectTransformGestures { _, panChange, zoom, _ ->
-                            scale = (scale * zoom).coerceIn(1f, 8f)
-                            pan += panChange
-                        }
-                    }
-                    .graphicsLayer {
-                        scaleX = scale; scaleY = scale
-                        translationX = pan.x; translationY = pan.y
-                    },
-            ) { drawShelterMap(ui, bbox) }
-            IconButton(onClick = onClose, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)) {
-                Icon(FeatherIcons.X, contentDescription = "Close", tint = Color.White)
-            }
-            Text(tr("Pinch to zoom · drag to pan", "জুম করতে দুই আঙুল · সরাতে টানুন"),
-                color = Color.White.copy(alpha = 0.75f), style = MaterialTheme.typography.labelMedium,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp))
-        }
-    }
-}
-
-/** Shared renderer for the shelter mini-map, used by both the inline preview and the dialog. */
+/** Renderer for the shelter mini-map preview. */
 private fun DrawScope.drawShelterMap(ui: GisUiState, bbox: DoubleArray) {
     val w = size.width; val h = size.height; val p = 14f
     val minLat = bbox[0]; val maxLat = bbox[1]; val minLon = bbox[2]; val maxLon = bbox[3]
@@ -476,29 +596,47 @@ private fun DrawScope.drawShelterMap(ui: GisUiState, bbox: DoubleArray) {
             )
         }
     }
-    val poly = ui.route?.polyline
-    if (poly != null) {
-        for (i in 0 until poly.size - 1) {
-            drawLine(ROUTE, Offset(ox(poly[i][1]), oy(poly[i][0])),
-                Offset(ox(poly[i + 1][1]), oy(poly[i + 1][0])), strokeWidth = 9f, cap = StrokeCap.Round)
-        }
-    } else ui.nearbyPublic.firstOrNull()?.let { top ->
-        drawLine(ROUTE, Offset(ox(ui.userLon), oy(ui.userLat)),
-            Offset(ox(top.shelter.lon), oy(top.shelter.lat)),
-            strokeWidth = 5f, pathEffect = dash, cap = StrokeCap.Round)
-    }
-    val shelterPts = if (ui.detailed) ui.shelters.map { it.id to (it.lon to it.lat) }
-    else ui.nearbyPublic.map { it.shelter.name to (it.shelter.lon to it.shelter.lat) }
-    shelterPts.forEach { (id, ll) ->
-        val (lon, lat) = ll
-        val selected = ui.detailed && id == ui.selectedShelterId
-        val c = Offset(ox(lon), oy(lat))
-        if (selected) {
-            drawCircle(Color.White, 15f, c); drawCircle(ROUTE, 11f, c)
+    // Route (detailed) or direction line (nationwide) to the selected shelter — only when located.
+    if (ui.hasLocation) {
+        val poly = ui.route?.polyline
+        if (poly != null) {
+            for (i in 0 until poly.size - 1) {
+                drawLine(ROUTE, Offset(ox(poly[i][1]), oy(poly[i][0])),
+                    Offset(ox(poly[i + 1][1]), oy(poly[i + 1][0])), strokeWidth = 9f, cap = StrokeCap.Round)
+            }
         } else {
-            drawCircle(Color.White, 12f, c); drawCircle(SHELTER, 8.5f, c)
+            val sel = ui.selectedPublicIdx?.let { ui.nearbyPublic.getOrNull(it) }
+                ?: ui.nearbyPublic.firstOrNull()
+            sel?.let {
+                drawLine(ROUTE, Offset(ox(ui.userLon), oy(ui.userLat)),
+                    Offset(ox(it.shelter.lon), oy(it.shelter.lat)),
+                    strokeWidth = 5f, pathEffect = dash, cap = StrokeCap.Round)
+            }
         }
     }
-    val uc = Offset(ox(ui.userLon), oy(ui.userLat))
-    drawCircle(Color.White, 14f, uc); drawCircle(USER, 10f, uc)
+    // Shelter markers (highlight the selected one).
+    if (ui.detailed) {
+        ui.shelters.forEach { s ->
+            val c = Offset(ox(s.lon), oy(s.lat))
+            if (ui.hasLocation && s.id == ui.selectedShelterId) {
+                drawCircle(Color.White, 15f, c); drawCircle(ROUTE, 11f, c)
+            } else {
+                drawCircle(Color.White, 12f, c); drawCircle(SHELTER, 8.5f, c)
+            }
+        }
+    } else {
+        ui.nearbyPublic.forEachIndexed { i, hit ->
+            val c = Offset(ox(hit.shelter.lon), oy(hit.shelter.lat))
+            if (i == ui.selectedPublicIdx) {
+                drawCircle(Color.White, 15f, c); drawCircle(ROUTE, 11f, c)
+            } else {
+                drawCircle(Color.White, 12f, c); drawCircle(SHELTER, 8.5f, c)
+            }
+        }
+    }
+    // "You" marker only when we actually have a location.
+    if (ui.hasLocation) {
+        val uc = Offset(ox(ui.userLon), oy(ui.userLat))
+        drawCircle(Color.White, 14f, uc); drawCircle(USER, 10f, uc)
+    }
 }
