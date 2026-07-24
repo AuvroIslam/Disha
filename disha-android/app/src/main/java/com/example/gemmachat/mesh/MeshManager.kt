@@ -26,6 +26,7 @@ import java.util.UUID
 class MeshManager(
     context: Context,
     val localName: String,
+    private val outbox: MeshOutbox,
     private val onStatus: (String) -> Unit,
     private val onPeersChanged: (Int) -> Unit,
     private val onReceived: (env: SignedEnvelope, verified: Boolean, hops: Int) -> Unit,
@@ -33,6 +34,21 @@ class MeshManager(
     private val client: ConnectionsClient = Nearby.getConnectionsClient(context)
     private val signer = MeshIdentity.loadOrCreateSigner(context, localName)
     private val gson = Gson()
+
+    /**
+     * What actually goes on the air. Two phones of the same model share a [localName] ("Disha
+     * SM-G990E"), which would make them indistinguishable as peers and leave the dial tie-break
+     * below undecidable. The signing keypair is per-install random, so a few characters of the
+     * public key give each phone a stable unique advertising name at no extra cost. The suffix is
+     * an implementation detail — [displayNameOf] strips it before anything reaches the UI.
+     */
+    private val advertisedName: String = run {
+        val tag = signer.publicKeyB64.filter { it.isLetterOrDigit() }.take(4).ifEmpty { "0000" }
+        "${localName.take(40)}#$tag"
+    }
+
+    /** The human-facing half of an advertised name. */
+    private fun displayNameOf(name: String): String = name.substringBefore('#')
     private var clock = 0
     // Bounded dedup cache: a long relay session could otherwise grow this set without limit.
     // LRU-evicting the oldest ids past the cap keeps memory flat; re-seeing an id older than the
@@ -45,7 +61,13 @@ class MeshManager(
             },
         ),
     )
+    // Guards both maps below: Nearby fires its callbacks on its own threads while the UI sends.
+    private val peerLock = Any()
     private val connected = mutableSetOf<String>()
+    // endpointId -> advertised name. One physical phone can end up behind more than one endpointId
+    // (P2P_CLUSTER has both sides advertising *and* discovering, and a peer reached over a second
+    // medium arrives as a fresh id), so the displayed peer count is distinct *names*, not ids.
+    private val endpointNames = mutableMapOf<String, String>()
 
     companion object {
         const val SERVICE_ID = "com.example.gemmachat.DISHA_MESH"
@@ -61,33 +83,92 @@ class MeshManager(
 
     private val lifecycle = object : ConnectionLifecycleCallback() {
         override fun onConnectionInitiated(endpointId: String, info: ConnectionInfo) {
+            synchronized(peerLock) { endpointNames[endpointId] = info.endpointName }
             client.acceptConnection(endpointId, payloadCallback)   // auto-accept for the demo
-            onStatus("Connecting to ${info.endpointName}…")
+            onStatus("Connecting to ${displayNameOf(info.endpointName)}…")
         }
         override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
-            if (result.status.isSuccess) {
-                connected.add(endpointId)
-                onPeersChanged(connected.size)
-                onStatus("Connected — ${connected.size} peer(s)")
+            if (!result.status.isSuccess) {
+                synchronized(peerLock) { endpointNames.remove(endpointId) }
+                return
             }
+            // Safety net behind the dial tie-break: if this phone is already connected on another
+            // endpoint, a second channel would only double-send. Advertised names are unique, so
+            // a match here is unambiguously the same device.
+            val redundant = synchronized(peerLock) {
+                val name = endpointNames[endpointId]
+                name != null && connected.any { it != endpointId && endpointNames[it] == name }
+            }
+            if (redundant) {
+                synchronized(peerLock) { endpointNames.remove(endpointId) }
+                try {
+                    client.disconnectFromEndpoint(endpointId)
+                } catch (_: Exception) {
+                }
+                return
+            }
+            val n = synchronized(peerLock) { connected.add(endpointId); peerCountLocked() }
+            onPeersChanged(n)
+            onStatus("Connected — $n peer(s)")
+            // Someone is finally in range: anything composed while we were alone goes out now.
+            flushOutbox()
         }
         override fun onDisconnected(endpointId: String) {
-            connected.remove(endpointId)
-            onPeersChanged(connected.size)
+            val n = synchronized(peerLock) {
+                connected.remove(endpointId); endpointNames.remove(endpointId); peerCountLocked()
+            }
+            onPeersChanged(n)
+            // Without this the banner keeps claiming "Connected — 1 peer(s)" after the last phone
+            // walks away, which is exactly the wrong thing to tell someone waiting on a rescue.
+            onStatus(
+                if (n == 0) {
+                    if (outbox.isEmpty()) "No peers in range — listening"
+                    else "No peers in range — ${outbox.size()} message(s) waiting to send"
+                } else "Connected — $n peer(s)",
+            )
         }
     }
 
     private val discovery = object : EndpointDiscoveryCallback() {
         override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
-            client.requestConnection(localName, endpointId, lifecycle)
+            // Both phones advertise *and* discover, so both would call requestConnection on each
+            // other and Nearby would hold two connections for the one pair — double-counted in the
+            // peer total and every payload sent twice. Break the symmetry so exactly one side
+            // dials: the lower advertised name initiates, the higher one just accepts. Advertised
+            // names are unique per install, so this always decides.
+            if (advertisedName > info.endpointName) return
+            // Already connected to this phone under another endpointId.
+            val duplicate = synchronized(peerLock) {
+                connected.any { endpointNames[it] == info.endpointName }
+            }
+            if (duplicate) return
+            client.requestConnection(advertisedName, endpointId, lifecycle)
         }
-        override fun onEndpointLost(endpointId: String) {}
+
+        override fun onEndpointLost(endpointId: String) {
+            // Discovery losing the advertisement does not mean an established connection dropped
+            // (onDisconnected owns that), so only forget endpoints we never connected to.
+            synchronized(peerLock) {
+                if (endpointId !in connected) endpointNames.remove(endpointId)
+            }
+        }
     }
 
+    /** Distinct physical phones behind the live endpoints. Caller must hold [peerLock]. */
+    private fun peerCountLocked(): Int =
+        connected.mapTo(mutableSetOf()) { endpointNames[it] ?: it }.size
+
     fun start() {
+        // Nearby endpoints live in Google Play services, not in this process, so a crash or a
+        // force-stop leaves the previous session's connections established and invisible to us —
+        // they reappear as extra peers we never accepted. Clear them before advertising again.
+        try {
+            client.stopAllEndpoints()
+        } catch (_: Exception) {
+        }
         val strategy = Strategy.P2P_CLUSTER
         client.startAdvertising(
-            localName, SERVICE_ID, lifecycle,
+            advertisedName, SERVICE_ID, lifecycle,
             AdvertisingOptions.Builder().setStrategy(strategy).build())
             .addOnSuccessListener { onStatus("Advertising as $localName") }
             .addOnFailureListener { onStatus("Advertise failed: ${it.message}") }
@@ -102,10 +183,10 @@ class MeshManager(
             client.stopAdvertising(); client.stopDiscovery(); client.stopAllEndpoints()
         } catch (_: Exception) {
         }
-        connected.clear()
+        synchronized(peerLock) { connected.clear(); endpointNames.clear() }
     }
 
-    fun peers(): Int = connected.size
+    fun peers(): Int = synchronized(peerLock) { peerCountLocked() }
 
     /** Compose + broadcast a signed SOS. Returns the envelope so the UI can show it locally. */
     fun sendSos(text: String, lat: Double?, lon: Double?): SignedEnvelope {
@@ -118,8 +199,9 @@ class MeshManager(
         val env = SignedEnvelope.create(signer, payload, UUID.randomUUID().toString(), clock, ttl = 4)
         seen.add(env.msgId)
         broadcast(env)
-        if (connected.isEmpty()) onStatus("No peers yet — SOS queued")
-        else onStatus("SOS broadcast to ${connected.size} peer(s)")
+        val n = peers()
+        if (n == 0) onStatus("No peers yet — SOS queued (${outbox.size()} waiting to send)")
+        else onStatus("SOS broadcast to $n peer(s)")
         return env
     }
 
@@ -137,8 +219,9 @@ class MeshManager(
             signer, payload, UUID.randomUUID().toString(), clock, ttl = 4, type = "community")
         seen.add(env.msgId)
         broadcast(env)
-        onStatus(if (connected.isEmpty()) "No peers yet — report queued"
-        else "Report shared with ${connected.size} peer(s)")
+        val n = peers()
+        onStatus(if (n == 0) "No peers yet — report queued (${outbox.size()} waiting to send)"
+        else "Report shared with $n peer(s)")
         return env
     }
 
@@ -162,14 +245,53 @@ class MeshManager(
     }
 
     private fun broadcast(env: SignedEnvelope) {
-        if (connected.isEmpty()) return
+        val targets = synchronized(peerLock) { connected.toList() }
+        if (targets.isEmpty()) {
+            // Nobody in range yet. Hold it — never drop it — and let flushOutbox() deliver it as
+            // soon as a phone connects. This is the ordinary case in a flood, not an error.
+            outbox.add(env)
+            return
+        }
+        sendTo(targets, env)
+    }
+
+    private fun sendTo(targets: List<String>, env: SignedEnvelope) {
         val bytes = gson.toJson(envToMap(env)).toByteArray(Charsets.UTF_8)
-        client.sendPayload(connected.toList(), Payload.fromBytes(bytes))
-            .addOnFailureListener {
-                // The sender must never believe an SOS went out when the transfer actually
-                // failed (peer walked out of range, radio dropped) — surface it immediately.
-                onStatus("⚠ SOS failed to send: ${it.message ?: "connection lost"}")
-            }
+        // Sent per endpoint rather than as one multi-target call so a failure names the endpoint
+        // that actually died and we can drop just that one.
+        targets.forEach { endpointId ->
+            client.sendPayload(endpointId, Payload.fromBytes(bytes))
+                .addOnFailureListener {
+                    // A peer whose process was killed leaves its endpoint established on our side
+                    // with no onDisconnected callback, so it keeps inflating the peer count until
+                    // something tries to use it. A failed send is that proof — drop it.
+                    dropEndpoint(endpointId)
+                    // The sender must never believe an SOS went out when the transfer actually
+                    // failed (peer walked out of range, radio dropped) — keep it for the next
+                    // peer (add() is id-deduped, so several failures queue it once) and say so.
+                    outbox.add(env)
+                    onStatus("⚠ Send failed: ${it.message ?: "connection lost"} — kept for retry")
+                }
+        }
+    }
+
+    /** Forget an endpoint we can no longer reach and refresh the peer count. */
+    private fun dropEndpoint(endpointId: String) {
+        val n = synchronized(peerLock) {
+            connected.remove(endpointId); endpointNames.remove(endpointId); peerCountLocked()
+        }
+        onPeersChanged(n)
+    }
+
+    /** Deliver everything that was composed while no peer was in range. */
+    private fun flushOutbox() {
+        if (outbox.isEmpty()) return
+        val targets = synchronized(peerLock) { connected.toList() }
+        if (targets.isEmpty()) return
+        val pending = outbox.drain()
+        if (pending.isEmpty()) return
+        pending.forEach { sendTo(targets, it) }
+        onStatus("Sent ${pending.size} queued message(s)")
     }
 
     private fun envToMap(env: SignedEnvelope): Map<String, Any?> {

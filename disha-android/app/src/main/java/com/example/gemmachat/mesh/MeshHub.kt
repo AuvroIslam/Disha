@@ -16,8 +16,14 @@ import com.example.gemmachat.data.Regions
 import com.example.gemmachat.data.SosEntry
 import com.example.gemmachat.data.SosRepository
 import com.example.gemmachat.location.LocationProvider
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 /** A single received/sent SOS line for the Mesh SOS screen. */
 data class MeshMsg(
@@ -49,6 +55,23 @@ class MeshHub(
 
     private var mgr: MeshManager? = null
     private var refs = 0
+    private var stopJob: Job? = null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    /**
+     * Messages composed with nobody in range. Lives on the hub, not on [MeshManager], so stopping
+     * and restarting the radio never discards something the user was told is pending.
+     */
+    private val outbox = MeshOutbox()
+
+    private companion object {
+        /**
+         * Navigating between two mesh screens drops the ref count to 0 for an instant before the
+         * incoming screen acquires. Tearing the radio down on that would drop every live
+         * connection and rebuild it under fresh endpoint ids, so wait out the transition first.
+         */
+        const val STOP_GRACE_MS = 3_000L
+    }
 
     private val _status = MutableStateFlow("Idle")
     val status: StateFlow<String> = _status
@@ -66,9 +89,12 @@ class MeshHub(
     @Synchronized
     fun acquire() {
         refs++
+        // A screen came back within the grace period — cancel the pending shutdown and keep the
+        // existing connections rather than rebuilding them.
+        stopJob?.cancel(); stopJob = null
         if (mgr == null) {
             mgr = MeshManager(
-                app, localName,
+                app, localName, outbox,
                 onStatus = { _status.value = it },
                 onPeersChanged = { _peers.value = it },
                 onReceived = ::onReceived,
@@ -80,11 +106,21 @@ class MeshHub(
     @Synchronized
     fun release() {
         refs = (refs - 1).coerceAtLeast(0)
-        if (refs == 0) {
-            mgr?.stop(); mgr = null
-            _started.value = false; _peers.value = 0
+        if (refs > 0) return
+        stopJob?.cancel()
+        stopJob = scope.launch {
+            delay(STOP_GRACE_MS)
+            synchronized(this@MeshHub) {
+                if (refs > 0) return@synchronized      // reacquired while we waited
+                mgr?.stop(); mgr = null
+                _started.value = false; _peers.value = 0
+                stopJob = null
+            }
         }
     }
+
+    /** Messages composed with no peer in range, still waiting for one. */
+    fun pendingCount(): Int = outbox.size()
 
     suspend fun sendSos(text: String) {
         val t = text.trim(); if (t.isEmpty()) return
